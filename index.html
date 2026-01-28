@@ -1,0 +1,1094 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Vyz | Simple Indie Media Tool & Recorder</title>
+    <link rel="icon" type="image/svg+xml"
+        href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 500 500'%3E%3Cpath d='M0 66.6667C0 29.8477 29.8477 0 66.6667 0H433.333C470.152 0 500 29.8477 500 66.6667V433.333C500 470.152 470.152 500 433.333 500H66.6667C29.8477 500 0 470.152 0 433.333V66.6667Z' fill='%231B3A4B'/%3E%3Cpath d='M409.75 100.583C390.167 153.083 368.5 204.82 344.75 255.792C321 306.625 295.583 356.903 268.5 406.625L210.583 405.792C162.944 309.403 123.083 208.847 91 104.125L140.167 96.8335C146.833 120.445 153.847 143.5 161.208 166C168.569 188.5 176.417 210.792 184.75 232.875C193.083 254.959 201.972 276.972 211.417 298.917C221 320.861 231.208 342.945 242.042 365.167C265.653 322.945 287.597 279.195 307.875 233.917C328.292 188.639 346.486 142.111 362.458 94.3335L409.75 100.583Z' fill='%23F5F5F0'/%3E%3C/svg%3E" />
+    <meta name="description"
+        content="Vyz is a lightweight studio for your browser. Layer your camera, share your screen, and hit record. No accounts, no bloat, just your best ideas in a neat package.">
+    <link rel="stylesheet"
+        href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0" />
+
+    <style>
+        :root {
+            --dark-base: #1B3A4B;
+            --text: #1C1C1E;
+            --light-base: #F5F5F0;
+            --alert: #F45B69;
+
+            background: var(--light-base);
+            color: var(--text);
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        a {
+            text-decoration: none;
+            color: inherit;
+            font-style: italic;
+        }
+
+        body {
+            margin: 0;
+            padding: 0.25rem;
+            overflow: hidden;
+            width: 100dvw;
+            height: 100dvh;
+            display: grid;
+            flex-direction: column;
+            grid-auto-rows: 2rem 89.785% 1rem;
+            gap: 0.5rem;
+            font-family: sans-serif;
+        }
+
+        header {
+            display: flex;
+            flex-direction: row;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .logo {
+            font-size: 1.25rem;
+            font-weight: 600;
+        }
+
+        header .right {
+            display: flex;
+            flex-direction: row;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        main {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+            height: -webkit-fill-available;
+        }
+
+        .container {
+            height: -webkit-fill-available;
+            max-height: 92.5%;
+            width: 100%;
+            display: grid;
+            place-items: center;
+            overflow: hidden;
+        }
+
+        .controls {
+            display: flex;
+            flex-direction: row;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 0.5rem;
+        }
+
+        .btn {
+            display: flex;
+            flex-direction: row;
+            gap: 0.25rem;
+            align-items: center;
+            padding: 0.25rem 0.45rem;
+            outline: 1px solid;
+            border-radius: 1rem;
+            user-select: none;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .btn:hover {
+            background-color: rgba(27, 58, 75, 0.1);
+        }
+
+        .btn.active {
+            background-color: var(--dark-base);
+            color: var(--light-base);
+        }
+
+        .btn.active:hover {
+            background-color: rgba(27, 58, 75, 0.85);
+        }
+
+        .btn:disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+        }
+
+        .btn:disabled:hover {
+            background-color: transparent;
+        }
+
+        .btn.active:disabled:hover {
+            background-color: var(--dark-base);
+        }
+
+        #canvas-equiv {
+            max-width: 100%;
+            max-height: 100%;
+            min-height: -webkit-fill-available;
+            position: relative;
+            width: auto;
+            height: auto;
+            aspect-ratio: 16/9;
+            overflow: hidden;
+            border-radius: 5px;
+            background-color: #fefefe;
+            transition: aspect-ratio 0.3s ease;
+        }
+
+        video {
+            border-radius: 4px;
+            object-fit: cover;
+            position: absolute;
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            background-color: #2a2a2a;
+            cursor: pointer;
+        }
+
+        /* Disable transitions during recording */
+        body.recording video {
+            transition: none;
+        }
+
+        body.recording #canvas-equiv {
+            transition: none;
+        }
+
+        video[data-object-fit="cover"] {
+            object-fit: cover;
+        }
+
+        video[data-object-fit="contain"] {
+            object-fit: contain;
+        }
+
+        video[data-object-fit="fill"] {
+            object-fit: fill;
+        }
+
+        video[data-is-active="false"] {
+            display: none;
+        }
+
+        /* Layout-specific video positioning */
+        /* Side by Side Layout */
+        .layout-side #camera[data-is-active="true"] {
+            width: 50%;
+            height: 100%;
+            left: 0;
+            top: 0;
+            right: auto;
+            bottom: auto;
+        }
+
+        .layout-side #screen-share[data-is-active="true"] {
+            width: 50%;
+            height: 100%;
+            left: 50%;
+            top: 0;
+            right: auto;
+            bottom: auto;
+        }
+
+        /* Side by Side Layout - Swapped */
+        .layout-side.swapped #camera[data-is-active="true"] {
+            left: 50%;
+            right: auto;
+        }
+
+        .layout-side.swapped #screen-share[data-is-active="true"] {
+            left: 0;
+            right: auto;
+        }
+
+        /* Stacked Layout */
+        .layout-stack #camera[data-is-active="true"] {
+            width: 100%;
+            height: 50%;
+            left: 0;
+            top: 0;
+            right: auto;
+            bottom: auto;
+        }
+
+        .layout-stack #screen-share[data-is-active="true"] {
+            width: 100%;
+            height: 50%;
+            left: 0;
+            top: 50%;
+            right: auto;
+            bottom: auto;
+        }
+
+        /* Stacked Layout - Swapped */
+        .layout-stack.swapped #camera[data-is-active="true"] {
+            top: 50%;
+            bottom: auto;
+        }
+
+        .layout-stack.swapped #screen-share[data-is-active="true"] {
+            top: 0;
+            bottom: auto;
+        }
+
+        /* PiP Layout - Screen is main */
+        .layout-pip #screen-share[data-is-active="true"] {
+            width: 100%;
+            height: 100%;
+            left: 0;
+            top: 0;
+            right: auto;
+            bottom: auto;
+        }
+
+        .layout-pip #camera[data-is-active="true"] {
+            width: 25%;
+            height: 25%;
+            right: 2%;
+            bottom: 2%;
+            left: auto;
+            top: auto;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+            z-index: 10;
+        }
+
+        /* PiP Layout - Camera is main (swapped) */
+        .layout-pip.swapped #camera[data-is-active="true"] {
+            width: 100%;
+            height: 100%;
+            left: 0;
+            top: 0;
+            right: auto;
+            bottom: auto;
+            box-shadow: none;
+            z-index: 1;
+        }
+
+        .layout-pip.swapped #screen-share[data-is-active="true"] {
+            width: 25%;
+            height: 25%;
+            right: 2%;
+            bottom: 2%;
+            left: auto;
+            top: auto;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+            z-index: 10;
+        }
+
+        /* Solo layouts - when only one feed is active */
+        .layout-solo #camera[data-is-active="true"],
+        .layout-solo #screen-share[data-is-active="true"] {
+            width: 100%;
+            height: 100%;
+            left: 0;
+            top: 0;
+            right: auto;
+            bottom: auto;
+        }
+
+        /* PiP position variations - only apply to the overlay (smaller) video */
+        .layout-pip.pip-bottom-right #camera[data-is-active="true"]:not([style*="width: 100%"]),
+        .layout-pip.swapped.pip-bottom-right #screen-share[data-is-active="true"] {
+            right: 2%;
+            bottom: 2%;
+            left: auto;
+            top: auto;
+        }
+
+        .layout-pip.pip-bottom-left #camera[data-is-active="true"]:not([style*="width: 100%"]),
+        .layout-pip.swapped.pip-bottom-left #screen-share[data-is-active="true"] {
+            left: 2%;
+            bottom: 2%;
+            right: auto;
+            top: auto;
+        }
+
+        .layout-pip.pip-top-right #camera[data-is-active="true"]:not([style*="width: 100%"]),
+        .layout-pip.swapped.pip-top-right #screen-share[data-is-active="true"] {
+            right: 2%;
+            top: 2%;
+            left: auto;
+            bottom: auto;
+        }
+
+        .layout-pip.pip-top-left #camera[data-is-active="true"]:not([style*="width: 100%"]),
+        .layout-pip.swapped.pip-top-left #screen-share[data-is-active="true"] {
+            left: 2%;
+            top: 2%;
+            right: auto;
+            bottom: auto;
+        }
+
+        /* Empty state message */
+        .empty-state {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            text-align: center;
+            color: rgba(28, 28, 30, 0.5);
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        .empty-state .icon {
+            font-size: 3rem;
+            margin-bottom: 0.5rem;
+            opacity: 0.3;
+        }
+
+        .empty-state .message {
+            font-size: 1rem;
+            font-weight: 500;
+        }
+
+        .empty-state .sub-message {
+            font-size: 0.875rem;
+            margin-top: 0.25rem;
+            opacity: 0.7;
+        }
+
+        /* Hide empty state when any video is active */
+        #canvas-equiv:has(video[data-is-active="true"]) .empty-state {
+            display: none;
+        }
+
+        /* Recording indicator */
+        .recording-indicator {
+            position: absolute;
+            top: 1rem;
+            left: 1rem;
+            background: var(--alert);
+            color: white;
+            padding: 0.5rem 0.75rem;
+            border-radius: 2rem;
+            display: none;
+            align-items: center;
+            gap: 0.5rem;
+            font-weight: 600;
+            font-size: 0.875rem;
+            z-index: 100;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+        }
+
+        .recording-indicator.active {
+            display: flex;
+        }
+
+        .recording-dot {
+            width: 0.5rem;
+            height: 0.5rem;
+            background: white;
+            border-radius: 50%;
+            animation: pulse 1.5s ease-in-out infinite;
+        }
+
+        @keyframes pulse {
+
+            0%,
+            100% {
+                opacity: 1;
+            }
+
+            50% {
+                opacity: 0.3;
+            }
+        }
+
+        .btn.recording {
+            background-color: var(--alert);
+            color: white;
+            animation: recording-pulse 2s ease-in-out infinite;
+        }
+
+        @keyframes recording-pulse {
+
+            0%,
+            100% {
+                box-shadow: 0 0 0 0 rgba(244, 91, 105, 0.4);
+            }
+
+            50% {
+                box-shadow: 0 0 0 8px rgba(244, 91, 105, 0);
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <header>
+        <span class="left logo">Vyz</span>
+        <span class="right"></span>
+    </header>
+    <main>
+        <div class="container">
+            <div id="canvas-equiv" class="layout-pip">
+                <div class="recording-indicator" id="recording-indicator">
+                    <div class="recording-dot"></div>
+                    <span>REC</span>
+                    <span id="recording-time">0:00</span>
+                </div>
+                <div class="empty-state">
+                    <div class="icon">
+                        <span class="material-symbols-outlined" style="font-size: inherit;">videocam_off</span>
+                    </div>
+                    <div class="message">No active feeds</div>
+                    <div class="sub-message">Turn on Camera or Screen Share to begin</div>
+                </div>
+                <video id="camera" data-is-active="false" data-object-fit="cover" autoplay muted playsinline></video>
+                <video id="screen-share" data-is-active="false" data-object-fit="cover" autoplay muted
+                    playsinline></video>
+            </div>
+        </div>
+        <div class="controls">
+            <span id="toggle-camera" class="btn">
+                <span class="material-symbols-outlined">videocam</span>
+                <span>Camera</span>
+            </span>
+            <span id="toggle-mic" class="btn">
+                <span class="material-symbols-outlined">mic</span>
+                <span>Mic</span>
+            </span>
+            <span id="toggle-screenshare" class="btn">
+                <span class="material-symbols-outlined">screen_share</span>
+                <span>Screen Share</span>
+            </span>
+            <span class="btn active" id="change-aspect-ratio">
+                <span class="material-symbols-outlined">aspect_ratio</span>
+                <span id="aspect-ratio-text">16:9</span>
+            </span>
+            <span id="change-orientation" class="btn active">
+                <span class="material-symbols-outlined" id="orientation-icon">landscape</span>
+                <span id="orientation-text">Landscape</span>
+            </span>
+            <span id="change-layout" class="btn" disabled>
+                <span class="material-symbols-outlined">grid_view</span>
+                <span id="layout-text">Layout</span>
+            </span>
+            <span id="swap-feeds" class="btn" disabled>
+                <span class="material-symbols-outlined">swap_horiz</span>
+                <span>Swap</span>
+            </span>
+            <span id="change-pip-position" class="btn" disabled>
+                <span class="material-symbols-outlined">picture_in_picture_alt</span>
+                <span id="pip-position-text">Position</span>
+            </span>
+            <span id="toggle-record" class="btn">
+                <span class="material-symbols-outlined">screen_record</span>
+                <span>Record</span>
+            </span>
+        </div>
+
+        <canvas id="rendering-canvas"
+            style="position: absolute; left: 120dvw; top: 0dvh; min-width: 100dvw; min-height: 100dvh;"></canvas>
+
+    </main>
+    <footer style="text-align: center;">
+        Vyz • Captured with ❤️ in Islamabad
+    </footer>
+
+    <script>
+        // State management
+        const state = {
+            orientation: 'landscape',
+            aspectRatioIndex: 2,
+            layout: 'pip', // 'solo', 'side', 'stack', 'pip'
+            swapped: false,
+            pipPosition: 'bottom-right', // 'bottom-right', 'bottom-left', 'top-right', 'top-left'
+            cameraActive: false,
+            screenShareActive: false,
+            micActive: false,
+            recording: false
+        };
+
+        // Aspect ratios for landscape and portrait
+        const aspectRatios = {
+            landscape: [
+                { ratio: '1/1', text: '1:1' },
+                { ratio: '4/3', text: '4:3' },
+                { ratio: '16/9', text: '16:9' }
+            ],
+            portrait: [
+                { ratio: '1/1', text: '1:1' },
+                { ratio: '3/4', text: '3:4' },
+                { ratio: '9/16', text: '9:16' }
+            ]
+        };
+
+        // Layout cycle for dual feeds
+        const layoutCycle = ['side', 'stack', 'pip'];
+
+        // PiP position cycle
+        const pipPositionCycle = ['bottom-right', 'bottom-left', 'top-left', 'top-right'];
+
+        // DOM elements
+        const canvasEquiv = document.getElementById('canvas-equiv');
+        const cameraVideo = document.getElementById('camera');
+        const screenShareVideo = document.getElementById('screen-share');
+        const renderingCanvas = document.getElementById('rendering-canvas');
+        const recordingIndicator = document.getElementById('recording-indicator');
+        const recordingTimeDisplay = document.getElementById('recording-time');
+
+        const toggleCameraBtn = document.getElementById('toggle-camera');
+        const toggleMicBtn = document.getElementById('toggle-mic');
+        const toggleScreenShareBtn = document.getElementById('toggle-screenshare');
+        const aspectRatioBtn = document.getElementById('change-aspect-ratio');
+        const aspectRatioText = document.getElementById('aspect-ratio-text');
+        const orientationBtn = document.getElementById('change-orientation');
+        const orientationIcon = document.getElementById('orientation-icon');
+        const orientationText = document.getElementById('orientation-text');
+        const changeLayoutBtn = document.getElementById('change-layout');
+        const layoutText = document.getElementById('layout-text');
+        const swapFeedsBtn = document.getElementById('swap-feeds');
+        const changePipPositionBtn = document.getElementById('change-pip-position');
+        const pipPositionText = document.getElementById('pip-position-text');
+        const toggleRecordBtn = document.getElementById('toggle-record');
+
+        // Media streams
+        let cameraStream = null;
+        let screenStream = null;
+
+        // Recording
+        let mediaRecorder = null;
+        let recordedChunks = [];
+        let recordingStartTime = null;
+        let recordingTimer = null;
+        let animationFrameId = null;
+
+        // Update canvas aspect ratio
+        function updateAspectRatio() {
+            const currentRatios = aspectRatios[state.orientation];
+            const currentRatio = currentRatios[state.aspectRatioIndex];
+            canvasEquiv.style.aspectRatio = currentRatio.ratio;
+            aspectRatioText.textContent = currentRatio.text;
+        }
+
+        // Update orientation display
+        function updateOrientation() {
+            if (state.orientation === 'landscape') {
+                orientationIcon.textContent = 'landscape';
+                orientationText.textContent = 'Landscape';
+            } else {
+                orientationIcon.textContent = 'portrait';
+                orientationText.textContent = 'Portrait';
+            }
+        }
+
+        // Determine and update layout based on active feeds
+        function updateLayout() {
+            const bothActive = state.cameraActive && state.screenShareActive;
+            const oneActive = state.cameraActive || state.screenShareActive;
+
+            // Update layout class
+            canvasEquiv.className = '';
+
+            if (bothActive) {
+                canvasEquiv.classList.add(`layout-${state.layout}`);
+                if (state.swapped) {
+                    canvasEquiv.classList.add('swapped');
+                }
+                if (state.layout === 'pip') {
+                    canvasEquiv.classList.add(`pip-${state.pipPosition}`);
+                }
+            } else if (oneActive) {
+                canvasEquiv.classList.add('layout-solo');
+            }
+
+            // Update button states
+            changeLayoutBtn.disabled = !bothActive;
+            swapFeedsBtn.disabled = !bothActive;
+            changePipPositionBtn.disabled = !(bothActive && state.layout === 'pip');
+
+            // Update layout text
+            const layoutNames = {
+                'side': 'Side',
+                'stack': 'Stack',
+                'pip': 'PiP'
+            };
+
+            if (bothActive) {
+                layoutText.textContent = layoutNames[state.layout];
+            } else {
+                layoutText.textContent = layoutNames[state.layout] || 'Layout';
+            }
+
+            // Update PiP position text
+            if (state.layout === 'pip') {
+                const posNames = {
+                    'bottom-right': 'BR',
+                    'bottom-left': 'BL',
+                    'top-left': 'TL',
+                    'top-right': 'TR'
+                };
+                pipPositionText.textContent = posNames[state.pipPosition];
+            } else {
+                pipPositionText.textContent = 'Position';
+            }
+        }
+
+        // Toggle camera
+        async function toggleCamera() {
+            if (!state.cameraActive) {
+                try {
+                    cameraStream = await navigator.mediaDevices.getUserMedia({
+                        video: { width: 1920, height: 1080 },
+                        audio: true // Enable audio from camera/microphone
+                    });
+                    cameraVideo.srcObject = cameraStream;
+                    cameraVideo.dataset.isActive = 'true';
+                    state.cameraActive = true;
+                    toggleCameraBtn.classList.add('active');
+                } catch (err) {
+                    console.error('Error accessing camera:', err);
+                    alert('Could not access camera');
+                }
+            } else {
+                if (cameraStream) {
+                    cameraStream.getTracks().forEach(track => track.stop());
+                }
+                cameraVideo.srcObject = null;
+                cameraVideo.dataset.isActive = 'false';
+                state.cameraActive = false;
+                toggleCameraBtn.classList.remove('active');
+            }
+            updateLayout();
+        }
+
+        // Toggle screen share
+        async function toggleScreenShare() {
+            if (!state.screenShareActive) {
+                try {
+                    screenStream = await navigator.mediaDevices.getDisplayMedia({
+                        video: { width: 1920, height: 1080 },
+                        audio: true
+                    });
+
+                    // Handle when user stops sharing via browser UI
+                    screenStream.getVideoTracks()[0].addEventListener('ended', () => {
+                        toggleScreenShare();
+                    });
+
+                    screenShareVideo.srcObject = screenStream;
+                    screenShareVideo.dataset.isActive = 'true';
+                    state.screenShareActive = true;
+                    toggleScreenShareBtn.classList.add('active');
+                } catch (err) {
+                    console.error('Error accessing screen share:', err);
+                    if (err.name !== 'NotAllowedError') {
+                        alert('Could not access screen share');
+                    }
+                }
+            } else {
+                if (screenStream) {
+                    screenStream.getTracks().forEach(track => track.stop());
+                }
+                screenShareVideo.srcObject = null;
+                screenShareVideo.dataset.isActive = 'false';
+                state.screenShareActive = false;
+                toggleScreenShareBtn.classList.remove('active');
+            }
+            updateLayout();
+        }
+
+        // Toggle mic (placeholder for now)
+        function toggleMic() {
+            state.micActive = !state.micActive;
+            toggleMicBtn.classList.toggle('active', state.micActive);
+            // TODO: Implement actual mic muting/unmuting
+        }
+
+        // Change layout
+        function changeLayout() {
+            if (!state.cameraActive || !state.screenShareActive) return;
+
+            const currentIndex = layoutCycle.indexOf(state.layout);
+            const nextIndex = (currentIndex + 1) % layoutCycle.length;
+            state.layout = layoutCycle[nextIndex];
+
+            // Reset swap when changing layouts
+            state.swapped = false;
+
+            updateLayout();
+        }
+
+        // Swap feeds
+        function swapFeeds() {
+            if (!state.cameraActive || !state.screenShareActive) return;
+
+            state.swapped = !state.swapped;
+            updateLayout();
+        }
+
+        // Change PiP position
+        function changePipPosition() {
+            if (state.layout !== 'pip') return;
+
+            const currentIndex = pipPositionCycle.indexOf(state.pipPosition);
+            const nextIndex = (currentIndex + 1) % pipPositionCycle.length;
+            state.pipPosition = pipPositionCycle[nextIndex];
+
+            updateLayout();
+        }
+
+        // Cycle object-fit on double click
+        function cycleObjectFit(videoElement) {
+            const currentFit = videoElement.dataset.objectFit || 'cover';
+            const fits = ['cover', 'contain'];
+            const currentIndex = fits.indexOf(currentFit);
+            const nextIndex = (currentIndex + 1) % fits.length;
+            const nextFit = fits[nextIndex];
+
+            videoElement.dataset.objectFit = nextFit;
+            console.log(`${videoElement.id} object-fit: ${nextFit}`);
+        }
+
+        // Setup canvas for recording
+        function setupCanvas() {
+            const ctx = renderingCanvas.getContext('2d');
+
+            // Get canvas dimensions based on aspect ratio
+            const aspectRatio = canvasEquiv.style.aspectRatio.split('/');
+            const width = 1920;
+            const height = Math.round(width / (parseFloat(aspectRatio[0]) / parseFloat(aspectRatio[1])));
+
+            renderingCanvas.width = width;
+            renderingCanvas.height = height;
+
+            return ctx;
+        }
+
+        // Draw current frame to canvas
+        function drawFrame(ctx) {
+            const width = renderingCanvas.width;
+            const height = renderingCanvas.height;
+
+            // Clear canvas
+            ctx.fillStyle = '#fefefe';
+            ctx.fillRect(0, 0, width, height);
+
+            // Helper function to draw video with proper object-fit
+            function drawVideoWithFit(video, x, y, w, h) {
+                if (!video || video.readyState < 2) return;
+
+                const objectFit = video.dataset.objectFit || 'cover';
+                const videoAspect = video.videoWidth / video.videoHeight;
+                const targetAspect = w / h;
+
+                let sx = 0, sy = 0, sw = video.videoWidth, sh = video.videoHeight;
+                let dx = x, dy = y, dw = w, dh = h;
+
+                if (objectFit === 'cover') {
+                    if (videoAspect > targetAspect) {
+                        // Video is wider - crop sides
+                        sw = video.videoHeight * targetAspect;
+                        sx = (video.videoWidth - sw) / 2;
+                    } else {
+                        // Video is taller - crop top/bottom
+                        sh = video.videoWidth / targetAspect;
+                        sy = (video.videoHeight - sh) / 2;
+                    }
+                } else if (objectFit === 'contain') {
+                    if (videoAspect > targetAspect) {
+                        // Video is wider - letterbox top/bottom
+                        dh = w / videoAspect;
+                        dy = y + (h - dh) / 2;
+                    } else {
+                        // Video is taller - letterbox sides
+                        dw = h * videoAspect;
+                        dx = x + (w - dw) / 2;
+                    }
+                }
+                // 'fill' uses full target dimensions (default behavior)
+
+                ctx.drawImage(video, sx, sy, sw, sh, dx, dy, dw, dh);
+            }
+
+            // Draw based on current layout
+            const classes = canvasEquiv.className.split(' ');
+            const layoutClass = classes.find(c => c.startsWith('layout-'));
+            const layout = layoutClass ? layoutClass.replace('layout-', '') : 'solo';
+            const isSwapped = classes.includes('swapped');
+
+            if (layout === 'side') {
+                if (state.cameraActive && state.screenShareActive) {
+                    const leftVideo = isSwapped ? screenShareVideo : cameraVideo;
+                    const rightVideo = isSwapped ? cameraVideo : screenShareVideo;
+                    drawVideoWithFit(leftVideo, 0, 0, width / 2, height);
+                    drawVideoWithFit(rightVideo, width / 2, 0, width / 2, height);
+                } else if (state.cameraActive) {
+                    drawVideoWithFit(cameraVideo, 0, 0, width, height);
+                } else if (state.screenShareActive) {
+                    drawVideoWithFit(screenShareVideo, 0, 0, width, height);
+                }
+            } else if (layout === 'stack') {
+                if (state.cameraActive && state.screenShareActive) {
+                    const topVideo = isSwapped ? screenShareVideo : cameraVideo;
+                    const bottomVideo = isSwapped ? cameraVideo : screenShareVideo;
+                    drawVideoWithFit(topVideo, 0, 0, width, height / 2);
+                    drawVideoWithFit(bottomVideo, 0, height / 2, width, height / 2);
+                } else if (state.cameraActive) {
+                    drawVideoWithFit(cameraVideo, 0, 0, width, height);
+                } else if (state.screenShareActive) {
+                    drawVideoWithFit(screenShareVideo, 0, 0, width, height);
+                }
+            } else if (layout === 'pip') {
+                if (state.cameraActive && state.screenShareActive) {
+                    const mainVideo = isSwapped ? cameraVideo : screenShareVideo;
+                    const pipVideo = isSwapped ? screenShareVideo : cameraVideo;
+
+                    // Draw main video
+                    drawVideoWithFit(mainVideo, 0, 0, width, height);
+
+                    // Draw PiP overlay
+                    const pipWidth = width * 0.25;
+                    const pipHeight = height * 0.25;
+                    const margin = width * 0.02;
+
+                    let pipX, pipY;
+                    if (state.pipPosition === 'bottom-right') {
+                        pipX = width - pipWidth - margin;
+                        pipY = height - pipHeight - margin;
+                    } else if (state.pipPosition === 'bottom-left') {
+                        pipX = margin;
+                        pipY = height - pipHeight - margin;
+                    } else if (state.pipPosition === 'top-left') {
+                        pipX = margin;
+                        pipY = margin;
+                    } else { // top-right
+                        pipX = width - pipWidth - margin;
+                        pipY = margin;
+                    }
+
+                    // Add shadow for PiP
+                    ctx.shadowColor = 'rgba(0, 0, 0, 0.3)';
+                    ctx.shadowBlur = 12;
+                    ctx.shadowOffsetX = 0;
+                    ctx.shadowOffsetY = 4;
+
+                    drawVideoWithFit(pipVideo, pipX, pipY, pipWidth, pipHeight);
+
+                    // Reset shadow
+                    ctx.shadowColor = 'transparent';
+                    ctx.shadowBlur = 0;
+                    ctx.shadowOffsetX = 0;
+                    ctx.shadowOffsetY = 0;
+                } else if (state.cameraActive) {
+                    drawVideoWithFit(cameraVideo, 0, 0, width, height);
+                } else if (state.screenShareActive) {
+                    drawVideoWithFit(screenShareVideo, 0, 0, width, height);
+                }
+            } else {
+                // Solo layout
+                if (state.cameraActive) {
+                    drawVideoWithFit(cameraVideo, 0, 0, width, height);
+                } else if (state.screenShareActive) {
+                    drawVideoWithFit(screenShareVideo, 0, 0, width, height);
+                }
+            }
+        }
+
+        // Recording loop
+        function recordingLoop() {
+            if (!state.recording) return;
+
+            const ctx = renderingCanvas.getContext('2d');
+            drawFrame(ctx);
+
+            animationFrameId = requestAnimationFrame(recordingLoop);
+        }
+
+        // Format time for display
+        function formatTime(seconds) {
+            const mins = Math.floor(seconds / 60);
+            const secs = seconds % 60;
+            return `${mins}:${secs.toString().padStart(2, '0')}`;
+        }
+
+        // Update recording timer display
+        function updateRecordingTime() {
+            if (!state.recording || !recordingStartTime) return;
+
+            const elapsed = Math.floor((Date.now() - recordingStartTime) / 1000);
+            recordingTimeDisplay.textContent = formatTime(elapsed);
+        }
+
+        // Toggle recording (placeholder)
+        async function toggleRecord() {
+            if (!state.recording) {
+                // Start recording
+                if (!state.cameraActive && !state.screenShareActive) {
+                    alert('Please enable at least one video feed before recording');
+                    return;
+                }
+
+                try {
+                    const ctx = setupCanvas();
+                    recordedChunks = [];
+
+                    // Mix audio streams
+                    const audioContext = new AudioContext();
+                    const destination = audioContext.createMediaStreamDestination();
+
+                    let hasAudio = false;
+
+                    // Add camera/microphone audio if available
+                    if (cameraStream && cameraStream.getAudioTracks().length > 0) {
+                        const cameraAudioSource = audioContext.createMediaStreamSource(
+                            new MediaStream(cameraStream.getAudioTracks())
+                        );
+                        cameraAudioSource.connect(destination);
+                        hasAudio = true;
+                        console.log('Camera audio tracks added:', cameraStream.getAudioTracks().length);
+                    }
+
+                    // Add screen share audio if available
+                    if (screenStream && screenStream.getAudioTracks().length > 0) {
+                        const screenAudioSource = audioContext.createMediaStreamSource(
+                            new MediaStream(screenStream.getAudioTracks())
+                        );
+                        screenAudioSource.connect(destination);
+                        hasAudio = true;
+                        console.log('Screen audio tracks added:', screenStream.getAudioTracks().length);
+                    }
+
+                    // Get canvas stream and combine with audio
+                    const canvasStream = renderingCanvas.captureStream(30); // 30 fps
+                    const videoTrack = canvasStream.getVideoTracks()[0];
+
+                    // Create combined stream
+                    const combinedStream = new MediaStream([videoTrack]);
+                    if (hasAudio && destination.stream.getAudioTracks().length > 0) {
+                        destination.stream.getAudioTracks().forEach(track => {
+                            combinedStream.addTrack(track);
+                        });
+                        console.log('Combined stream audio tracks:', combinedStream.getAudioTracks().length);
+                    } else {
+                        console.log('No audio tracks available for recording');
+                    }
+
+                    // Start media recorder
+                    const mimeType = MediaRecorder.isTypeSupported('video/webm;codecs=vp9,opus')
+                        ? 'video/webm;codecs=vp9,opus'
+                        : 'video/webm';
+
+                    mediaRecorder = new MediaRecorder(combinedStream, {
+                        mimeType: mimeType,
+                        videoBitsPerSecond: 5000000,
+                        audioBitsPerSecond: 128000
+                    });
+
+                    console.log('MediaRecorder created with mimeType:', mimeType);
+
+                    mediaRecorder.ondataavailable = (event) => {
+                        if (event.data.size > 0) {
+                            recordedChunks.push(event.data);
+                        }
+                    };
+
+                    mediaRecorder.onstop = () => {
+                        const blob = new Blob(recordedChunks, { type: 'video/webm' });
+                        const url = URL.createObjectURL(blob);
+
+                        // Auto download
+                        const a = document.createElement('a');
+                        a.href = url;
+                        a.download = `vyz-recording-${Date.now()}.webm`;
+                        a.click();
+
+                        URL.revokeObjectURL(url);
+                        recordedChunks = [];
+
+                        // Clean up audio context
+                        if (audioContext.state !== 'closed') {
+                            audioContext.close();
+                        }
+                    };
+
+                    mediaRecorder.start(1000); // Collect data every second
+
+                    // Start animation loop
+                    state.recording = true;
+                    recordingStartTime = Date.now();
+                    recordingLoop();
+
+                    // Update UI - add recording class to body to disable animations
+                    document.body.classList.add('recording');
+                    toggleRecordBtn.classList.add('active', 'recording');
+                    recordingIndicator.classList.add('active');
+                    recordingTimer = setInterval(updateRecordingTime, 1000);
+
+                    console.log('Recording started');
+                } catch (err) {
+                    console.error('Error starting recording:', err);
+                    alert('Failed to start recording: ' + err.message);
+                }
+            } else {
+                // Stop recording
+                if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+                    mediaRecorder.stop();
+                }
+
+                if (animationFrameId) {
+                    cancelAnimationFrame(animationFrameId);
+                    animationFrameId = null;
+                }
+
+                if (recordingTimer) {
+                    clearInterval(recordingTimer);
+                    recordingTimer = null;
+                }
+
+                state.recording = false;
+                recordingStartTime = null;
+
+                // Update UI - remove recording class to re-enable animations
+                document.body.classList.remove('recording');
+                toggleRecordBtn.classList.remove('active', 'recording');
+                recordingIndicator.classList.remove('active');
+                recordingTimeDisplay.textContent = '0:00';
+
+                console.log('Recording stopped');
+            }
+        }
+
+        // Event listeners
+        toggleCameraBtn.addEventListener('click', toggleCamera);
+        toggleMicBtn.addEventListener('click', toggleMic);
+        toggleScreenShareBtn.addEventListener('click', toggleScreenShare);
+
+        aspectRatioBtn.addEventListener('click', () => {
+            const currentRatios = aspectRatios[state.orientation];
+            state.aspectRatioIndex = (state.aspectRatioIndex + 1) % currentRatios.length;
+            updateAspectRatio();
+        });
+
+        orientationBtn.addEventListener('click', () => {
+            state.orientation = state.orientation === 'landscape' ? 'portrait' : 'landscape';
+            state.aspectRatioIndex = Math.min(state.aspectRatioIndex, aspectRatios[state.orientation].length - 1);
+            updateOrientation();
+            updateAspectRatio();
+        });
+
+        changeLayoutBtn.addEventListener('click', changeLayout);
+        swapFeedsBtn.addEventListener('click', swapFeeds);
+        changePipPositionBtn.addEventListener('click', changePipPosition);
+        toggleRecordBtn.addEventListener('click', toggleRecord);
+
+        // Double-click to cycle object-fit
+        cameraVideo.addEventListener('dblclick', () => cycleObjectFit(cameraVideo));
+        screenShareVideo.addEventListener('dblclick', () => cycleObjectFit(screenShareVideo));
+
+        // Initialize
+        updateOrientation();
+        updateAspectRatio();
+        updateLayout();
+    </script>
+</body>
+
+</html>
