@@ -1,64 +1,71 @@
-# Vyz
+# Vyz Studio User Guide
 
-Vyz is a lightweight studio for your browser. Layer your camera, share your screen, and hit record. No accounts, no bloat, just your best ideas in a neat package.
+### In-Browser Broadcast Studio & Modular Media Pipelines
 
----
-
-# Vyz User Guide
-
-### The Instant Browser Studio
-
-**Vyz** is a lightweight, account-free media tool designed for quick recordings and neat presentations. Layer your camera and screen in professional layouts directly in your browser.
+**Vyz** is a lightweight, zero-install broadcast studio and media recorder running entirely inside your browser. Layer multiple camera, screen, mic, and remote participant feeds in professional layouts, apply MediaPipe-flow visual filters and custom plugins, broadcast the merged program stream over WebRTC, or record high-definition `.webm` video.
 
 ---
 
-## 1. Getting Started
+## 1. Core Studio Architecture
 
-To begin, provide Vyz with your media feeds:
-
-* **Camera:** Click **"Camera"** to activate your webcam.
-* **Mic:** Click **"Mic"** to enable audio.
-* **Screen Share:** Click **"Screen Share"** to select a window, tab, or your entire desktop.
-
-> **Privacy Note:** Vyz respects your privacy. All video processing and recording happen locally in your browser. Your data is never uploaded to a server.
+* **Card-Based Media Sources:** Every media feed (webcam, screen share, microphone, remote peer, virtual stream) is managed as an independent card.
+* **Independent Audio & Video Toggles:** Toggle video visibility and audio muting separately on any card. When video is muted, Vyz renders an animated avatar pill with live voice rings.
+* **Merged Studio Broadcast:** The host can broadcast the merged, mixed canvas and audio stream as a single virtual media source over WebRTC to room peers or viewers.
+* **High-Bitrate Recording:** Hardware-accelerated recording (`VP9/Opus`) captures layout transitions, audio mixing, and post-processing filters in real-time.
+* **Public & Custom WebRTC (STUN/TURN):** Runs automatically on public STUN servers (Google & Cloudflare) with an in-app configuration dialog to add custom STUN/TURN relays.
 
 ---
 
-## 2. Mastering the Frame (The Fit Modes)
+## 2. Media Source Cards & Controls
 
-One of the most powerful features of Vyz is the ability to control how your video fills its container.
+Each source card in the studio shelf provides granular controls:
 
-* **Double-Click any Video Feed** to cycle between two modes:
-* **Cover (Default):** The video fills the entire assigned area. This looks professional and "full," but may crop the edges of your feed.
-* **Contain:** The entire video feed is visible without any cropping. This will add "letterboxing" (black bars) if the aspect ratio doesn't match perfectly.
-
-
-
----
-
-## 3. Layouts & Controls
-
-Once you have both **Camera** and **Screen Share** active, the layout engine unlocks:
-
-* **Change Layout:** Cycle through **Side** (split-screen), **Stack** (vertical), and **PiP** (Picture-in-Picture).
-* **Swap:** Instantly flip the position of your camera and screen.
-* **Position:** In PiP mode, move your floating camera bubble to any of the four corners.
-* **Canvas Settings:** Use the **Aspect Ratio** and **Orientation** buttons to prep your video for YouTube (16:9), Instagram (9:16), or LinkedIn (1:1).
+* **Audio Toggle (`Mic`):** Mute or unmute the audio track. Displays real-time audio VU meter levels.
+* **Video Toggle (`Camera`):** Blank or unblank the video track. Controllable by either the host or source owner.
+* **Fit Mode (`Crop`):** Switch between **Cover** (fills frame, professional crop) and **Contain** (letterboxed, zero crop for code/slides).
+* **Pipeline FX (`Tune`):** Open the filter dialog to select visual presets, MediaPipe bokeh blur, or load custom filters.
+* **Solo / Focus:** Feature a single source in full-stage view.
 
 ---
 
-## 4. Recording & Saving
+## 3. MediaPipe-Flow Filters & Custom Plugins
 
-1. **Start:** Click **Record**. A red **REC** indicator and timer will appear.
-2. **During:** You can change layouts, swap feeds, and even toggle **Fit Modes** *while* recording. Vyz captures these transitions in real-time.
-3. **Finish:** Click **Record** again to stop.
-4. **Save:** Once stopped, Vyz automatically generates a high-quality `.webm` file and triggers a download to your device.
+### Built-in Presets
+* **MediaPipe Bokeh:** Soft depth-of-field background blur.
+* **Studio Vibrant:** Saturated pop for webcams.
+* **Cinematic Warm:** Film-style teal and orange grade.
+* **Sharpen:** Enhanced high-frequency contrast (ideal for reading text in screen shares).
+* **35mm Vintage Film:** Subtle film grain, scanlines, and vignette.
+* **Cyberpunk Neon:** Edge-detection neon highlights.
+
+### Custom Filter Importer
+Load custom canvas and shader filters at runtime:
+1. **From URL:** Provide any hosted ES module or script exporting a `{ id, name, process(ctx, media, opts) }` contract.
+2. **From File:** Upload a local `.js` or `.json` filter definition.
+3. **Master Output FX:** Apply post-processing filters to the entire merged studio program canvas before broadcast or recording.
 
 ---
 
-### Pro-Tip for Creators
+## 4. Keyboard Shortcuts (Hotkeys)
 
-If you are recording a detailed technical demo, use **Contain** mode on your screen share by double-clicking it. This ensures your viewers see every piece of code or UI detail without any edges being cut off.
+| Shortcut | Action | Description |
+| :--- | :--- | :--- |
+| <kbd>Space</kbd> or <kbd>R</kbd> | **Record Studio** | Start or stop local studio recording (`.webm`). |
+| <kbd>B</kbd> | **Go Live** | Start or stop broadcasting the merged stream to peers. |
+| <kbd>V</kbd> | **Toggle Camera** | Turn the primary video track on or off. |
+| <kbd>M</kbd> | **Toggle Mic** | Mute or unmute the primary audio track. |
+| <kbd>1</kbd> – <kbd>5</kbd> | **Switch Layouts** | `1`: Grid, `2`: Side-by-side, `3`: Stack, `4`: PiP, `5`: Solo. |
+| <kbd>A</kbd> | **Aspect Ratio** | Cycle between `16:9`, `9:16`, `1:1`, and `4:3`. |
+| <kbd>F</kbd> | **Fullscreen** | Toggle fullscreen canvas preview. |
+| <kbd>?</kbd> | **Hotkeys Help** | Open keyboard shortcuts reference modal. |
+
+---
+
+## 5. WebRTC Multi-Participant Rooms
+
+1. **Host a Room:** Open the studio; click **Invite Peer** in the top bar to copy your room URL.
+2. **Join as Participant:** Guests open the link, grant camera/mic permissions, and their sources automatically appear in the host's studio card deck.
+3. **Custom Relay Servers:** Click **WebRTC Servers** in the header to enter custom TURN credentials for restricted corporate networks.
 
 ---
 

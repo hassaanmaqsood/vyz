@@ -4,1090 +4,1894 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Vyz | Simple Indie Media Tool & Recorder</title>
+    <title>Vyz Studio | In-Browser Broadcast Studio & Media Pipelines</title>
     <link rel="icon" type="image/svg+xml"
         href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 500 500'%3E%3Cpath d='M0 66.6667C0 29.8477 29.8477 0 66.6667 0H433.333C470.152 0 500 29.8477 500 66.6667V433.333C500 470.152 470.152 500 433.333 500H66.6667C29.8477 500 0 470.152 0 433.333V66.6667Z' fill='%231B3A4B'/%3E%3Cpath d='M409.75 100.583C390.167 153.083 368.5 204.82 344.75 255.792C321 306.625 295.583 356.903 268.5 406.625L210.583 405.792C162.944 309.403 123.083 208.847 91 104.125L140.167 96.8335C146.833 120.445 153.847 143.5 161.208 166C168.569 188.5 176.417 210.792 184.75 232.875C193.083 254.959 201.972 276.972 211.417 298.917C221 320.861 231.208 342.945 242.042 365.167C265.653 322.945 287.597 279.195 307.875 233.917C328.292 188.639 346.486 142.111 362.458 94.3335L409.75 100.583Z' fill='%23F5F5F0'/%3E%3C/svg%3E" />
     <meta name="description"
-        content="Vyz is a lightweight studio for your browser. Layer your camera, share your screen, and hit record. No accounts, no bloat, just your best ideas in a neat package.">
+        content="Vyz Studio: Complete in-browser broadcast studio with independent audio/video cards, MediaPipe-flow filters, custom plugin loaders, public & custom WebRTC servers, and master merged broadcasting.">
     <link rel="stylesheet"
         href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0" />
 
     <style>
         :root {
-            --dark-base: #1B3A4B;
-            --text: #1C1C1E;
-            --light-base: #F5F5F0;
-            --alert: #F45B69;
-
-            background: var(--light-base);
-            color: var(--text);
+            --dark-base: #101828;
+            --surface: #1E293B;
+            --surface-card: #273549;
+            --surface-hover: #334155;
+            --border: #334155;
+            --text: #F8FAFC;
+            --text-muted: #94A3B8;
+            --accent: #00F5D4;
+            --accent-glow: rgba(0, 245, 212, 0.25);
+            --primary: #38BDF8;
+            --alert: #F43F5E;
+            --success: #10B981;
+            --warning: #F59E0B;
+            --radius-md: 10px;
+            --radius-lg: 16px;
+            --font-main: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
         }
 
         * {
             box-sizing: border-box;
-        }
-
-        a {
-            text-decoration: none;
-            color: inherit;
-            font-style: italic;
+            margin: 0;
+            padding: 0;
         }
 
         body {
-            margin: 0;
-            padding: 0.25rem;
+            background-color: var(--dark-base);
+            color: var(--text);
+            font-family: var(--font-main);
+            width: 100vw;
+            height: 100vh;
             overflow: hidden;
-            width: 100dvw;
-            height: 100dvh;
-            display: grid;
+            display: flex;
             flex-direction: column;
-            grid-auto-rows: 2rem 89.785% 1rem;
-            gap: 0.5rem;
-            font-family: sans-serif;
+            user-select: none;
         }
 
         header {
+            height: 52px;
+            background-color: var(--surface);
+            border-bottom: 1px solid var(--border);
             display: flex;
-            flex-direction: row;
-            justify-content: space-between;
             align-items: center;
+            justify-content: space-between;
+            padding: 0 1.25rem;
+            flex-shrink: 0;
+        }
+
+        .logo-group {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
         }
 
         .logo {
             font-size: 1.25rem;
-            font-weight: 600;
+            font-weight: 700;
+            letter-spacing: -0.5px;
+            background: linear-gradient(135deg, #F8FAFC 30%, #38BDF8 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
         }
 
-        header .right {
+        .tag-pill {
+            font-size: 0.7rem;
+            padding: 2px 8px;
+            border-radius: 9999px;
+            background: rgba(56, 189, 248, 0.15);
+            color: var(--primary);
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .broadcast-indicator {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 0.72rem;
+            font-weight: 700;
+            padding: 3px 10px;
+            border-radius: 9999px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            background: rgba(148, 163, 184, 0.12);
+            color: var(--text-muted);
+            border: 1px solid rgba(148, 163, 184, 0.2);
+            transition: all 0.3s ease;
+        }
+
+        .broadcast-indicator.on-air {
+            background: rgba(0, 245, 212, 0.15);
+            color: var(--accent);
+            border-color: rgba(0, 245, 212, 0.4);
+            box-shadow: 0 0 12px var(--accent-glow);
+        }
+
+        .header-actions {
             display: flex;
-            flex-direction: row;
             align-items: center;
             gap: 0.5rem;
         }
 
         main {
-            display: flex;
-            flex-direction: column;
-            gap: 0.5rem;
-            height: -webkit-fill-available;
+            flex: 1;
+            display: grid;
+            grid-template-rows: 1fr auto;
+            overflow: hidden;
+            background: #0B0F17;
+            position: relative;
         }
 
-        .container {
-            height: -webkit-fill-available;
-            max-height: 92.5%;
-            width: 100%;
+        .stage-area {
             display: grid;
             place-items: center;
+            padding: 0.85rem;
+            position: relative;
             overflow: hidden;
         }
 
-        .controls {
-            display: flex;
-            flex-direction: row;
-            flex-wrap: wrap;
-            justify-content: center;
-            gap: 0.5rem;
-        }
-
-        .btn {
-            display: flex;
-            flex-direction: row;
-            gap: 0.25rem;
-            align-items: center;
-            padding: 0.25rem 0.45rem;
-            outline: 1px solid;
-            border-radius: 1rem;
-            user-select: none;
-            cursor: pointer;
-            transition: all 0.2s ease;
-        }
-
-        .btn:hover {
-            background-color: rgba(27, 58, 75, 0.1);
-        }
-
-        .btn.active {
-            background-color: var(--dark-base);
-            color: var(--light-base);
-        }
-
-        .btn.active:hover {
-            background-color: rgba(27, 58, 75, 0.85);
-        }
-
-        .btn:disabled {
-            opacity: 0.4;
-            cursor: not-allowed;
-        }
-
-        .btn:disabled:hover {
-            background-color: transparent;
-        }
-
-        .btn.active:disabled:hover {
-            background-color: var(--dark-base);
-        }
-
-        #canvas-equiv {
+        .canvas-container {
             max-width: 100%;
             max-height: 100%;
-            min-height: -webkit-fill-available;
+            display: flex;
+            justify-content: center;
+            align-items: center;
             position: relative;
-            width: auto;
-            height: auto;
-            aspect-ratio: 16/9;
+            box-shadow: 0 25px 50px -15px rgba(0, 0, 0, 0.8);
+            border-radius: var(--radius-lg);
             overflow: hidden;
-            border-radius: 5px;
-            background-color: #fefefe;
+            border: 1px solid var(--border);
+            background-color: #0F172A;
             transition: aspect-ratio 0.3s ease;
         }
 
-        video {
-            border-radius: 4px;
-            object-fit: cover;
-            position: absolute;
-            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-            background-color: #2a2a2a;
-            cursor: pointer;
-        }
-
-        /* Disable transitions during recording */
-        body.recording video {
-            transition: none;
-        }
-
-        body.recording #canvas-equiv {
-            transition: none;
-        }
-
-        video[data-object-fit="cover"] {
-            object-fit: cover;
-        }
-
-        video[data-object-fit="contain"] {
+        #studio-canvas {
+            width: 100%;
+            height: 100%;
+            max-width: 100%;
+            max-height: 100%;
             object-fit: contain;
+            display: block;
         }
 
-        video[data-object-fit="fill"] {
-            object-fit: fill;
-        }
-
-        video[data-is-active="false"] {
-            display: none;
-        }
-
-        /* Layout-specific video positioning */
-        /* Side by Side Layout */
-        .layout-side #camera[data-is-active="true"] {
-            width: 50%;
-            height: 100%;
-            left: 0;
-            top: 0;
-            right: auto;
-            bottom: auto;
-        }
-
-        .layout-side #screen-share[data-is-active="true"] {
-            width: 50%;
-            height: 100%;
-            left: 50%;
-            top: 0;
-            right: auto;
-            bottom: auto;
-        }
-
-        /* Side by Side Layout - Swapped */
-        .layout-side.swapped #camera[data-is-active="true"] {
-            left: 50%;
-            right: auto;
-        }
-
-        .layout-side.swapped #screen-share[data-is-active="true"] {
-            left: 0;
-            right: auto;
-        }
-
-        /* Stacked Layout */
-        .layout-stack #camera[data-is-active="true"] {
-            width: 100%;
-            height: 50%;
-            left: 0;
-            top: 0;
-            right: auto;
-            bottom: auto;
-        }
-
-        .layout-stack #screen-share[data-is-active="true"] {
-            width: 100%;
-            height: 50%;
-            left: 0;
-            top: 50%;
-            right: auto;
-            bottom: auto;
-        }
-
-        /* Stacked Layout - Swapped */
-        .layout-stack.swapped #camera[data-is-active="true"] {
-            top: 50%;
-            bottom: auto;
-        }
-
-        .layout-stack.swapped #screen-share[data-is-active="true"] {
-            top: 0;
-            bottom: auto;
-        }
-
-        /* PiP Layout - Screen is main */
-        .layout-pip #screen-share[data-is-active="true"] {
-            width: 100%;
-            height: 100%;
-            left: 0;
-            top: 0;
-            right: auto;
-            bottom: auto;
-        }
-
-        .layout-pip #camera[data-is-active="true"] {
-            width: 25%;
-            height: 25%;
-            right: 2%;
-            bottom: 2%;
-            left: auto;
-            top: auto;
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
-            z-index: 10;
-        }
-
-        /* PiP Layout - Camera is main (swapped) */
-        .layout-pip.swapped #camera[data-is-active="true"] {
-            width: 100%;
-            height: 100%;
-            left: 0;
-            top: 0;
-            right: auto;
-            bottom: auto;
-            box-shadow: none;
-            z-index: 1;
-        }
-
-        .layout-pip.swapped #screen-share[data-is-active="true"] {
-            width: 25%;
-            height: 25%;
-            right: 2%;
-            bottom: 2%;
-            left: auto;
-            top: auto;
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
-            z-index: 10;
-        }
-
-        /* Solo layouts - when only one feed is active */
-        .layout-solo #camera[data-is-active="true"],
-        .layout-solo #screen-share[data-is-active="true"] {
-            width: 100%;
-            height: 100%;
-            left: 0;
-            top: 0;
-            right: auto;
-            bottom: auto;
-        }
-
-        /* PiP position variations - only apply to the overlay (smaller) video */
-        .layout-pip.pip-bottom-right #camera[data-is-active="true"]:not([style*="width: 100%"]),
-        .layout-pip.swapped.pip-bottom-right #screen-share[data-is-active="true"] {
-            right: 2%;
-            bottom: 2%;
-            left: auto;
-            top: auto;
-        }
-
-        .layout-pip.pip-bottom-left #camera[data-is-active="true"]:not([style*="width: 100%"]),
-        .layout-pip.swapped.pip-bottom-left #screen-share[data-is-active="true"] {
-            left: 2%;
-            bottom: 2%;
-            right: auto;
-            top: auto;
-        }
-
-        .layout-pip.pip-top-right #camera[data-is-active="true"]:not([style*="width: 100%"]),
-        .layout-pip.swapped.pip-top-right #screen-share[data-is-active="true"] {
-            right: 2%;
-            top: 2%;
-            left: auto;
-            bottom: auto;
-        }
-
-        .layout-pip.pip-top-left #camera[data-is-active="true"]:not([style*="width: 100%"]),
-        .layout-pip.swapped.pip-top-left #screen-share[data-is-active="true"] {
-            left: 2%;
-            top: 2%;
-            right: auto;
-            bottom: auto;
-        }
-
-        /* Empty state message */
-        .empty-state {
+        .status-badge {
             position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            text-align: center;
-            color: rgba(28, 28, 30, 0.5);
-            pointer-events: none;
-            z-index: 0;
-        }
-
-        .empty-state .icon {
-            font-size: 3rem;
-            margin-bottom: 0.5rem;
-            opacity: 0.3;
-        }
-
-        .empty-state .message {
-            font-size: 1rem;
-            font-weight: 500;
-        }
-
-        .empty-state .sub-message {
-            font-size: 0.875rem;
-            margin-top: 0.25rem;
-            opacity: 0.7;
-        }
-
-        /* Hide empty state when any video is active */
-        #canvas-equiv:has(video[data-is-active="true"]) .empty-state {
-            display: none;
-        }
-
-        /* Recording indicator */
-        .recording-indicator {
-            position: absolute;
-            top: 1rem;
-            left: 1rem;
-            background: var(--alert);
-            color: white;
-            padding: 0.5rem 0.75rem;
-            border-radius: 2rem;
             display: none;
             align-items: center;
-            gap: 0.5rem;
-            font-weight: 600;
-            font-size: 0.875rem;
-            z-index: 100;
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+            gap: 8px;
+            background: rgba(15, 23, 42, 0.85);
+            backdrop-filter: blur(8px);
+            padding: 6px 12px;
+            border-radius: 9999px;
+            font-size: 0.78rem;
+            font-weight: 700;
+            color: #FFF;
+            z-index: 10;
         }
 
-        .recording-indicator.active {
+        .recording-badge {
+            top: 14px;
+            left: 16px;
+            border: 1px solid rgba(244, 63, 94, 0.4);
+        }
+
+        .recording-badge.active {
             display: flex;
         }
 
-        .recording-dot {
-            width: 0.5rem;
-            height: 0.5rem;
-            background: white;
+        .broadcast-overlay-badge {
+            top: 14px;
+            right: 16px;
+            border: 1px solid rgba(0, 245, 212, 0.4);
+            color: var(--accent);
+        }
+
+        .broadcast-overlay-badge.active {
+            display: flex;
+        }
+
+        .rec-dot {
+            width: 10px;
+            height: 10px;
             border-radius: 50%;
-            animation: pulse 1.5s ease-in-out infinite;
-        }
-
-        @keyframes pulse {
-
-            0%,
-            100% {
-                opacity: 1;
-            }
-
-            50% {
-                opacity: 0.3;
-            }
-        }
-
-        .btn.recording {
             background-color: var(--alert);
-            color: white;
-            animation: recording-pulse 2s ease-in-out infinite;
+            animation: pulse-red 1.2s infinite;
         }
 
-        @keyframes recording-pulse {
+        .air-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background-color: var(--accent);
+            animation: pulse-accent 1.2s infinite;
+        }
 
-            0%,
-            100% {
-                box-shadow: 0 0 0 0 rgba(244, 91, 105, 0.4);
-            }
+        @keyframes pulse-red {
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.4; transform: scale(0.85); }
+        }
 
-            50% {
-                box-shadow: 0 0 0 8px rgba(244, 91, 105, 0);
-            }
+        @keyframes pulse-accent {
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.4; transform: scale(0.85); }
+        }
+
+        /* Source Blocks Tray / Deck */
+        .blocks-shelf {
+            background-color: var(--surface);
+            border-top: 1px solid var(--border);
+            padding: 0.65rem 1.25rem;
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        .shelf-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .shelf-title {
+            font-size: 0.78rem;
+            text-transform: uppercase;
+            letter-spacing: 0.75px;
+            color: var(--text-muted);
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .shelf-actions {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .blocks-list {
+            display: flex;
+            gap: 0.75rem;
+            overflow-x: auto;
+            padding-bottom: 4px;
+            scrollbar-width: thin;
+        }
+
+        /* Source Card */
+        .block-card {
+            background: var(--surface-card);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-md);
+            padding: 0.55rem 0.75rem;
+            min-width: 230px;
+            max-width: 260px;
+            display: flex;
+            flex-direction: column;
+            gap: 0.45rem;
+            transition: all 0.2s ease;
+            position: relative;
+        }
+
+        .block-card.active-feed {
+            border-color: rgba(56, 189, 248, 0.4);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
+        }
+
+        .block-card.disabled-feed {
+            opacity: 0.55;
+            background: rgba(30, 41, 59, 0.4);
+        }
+
+        .block-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 6px;
+        }
+
+        .block-name {
+            font-size: 0.82rem;
+            font-weight: 600;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            flex: 1;
+        }
+
+        /* Live VU Meter Bar */
+        .vu-meter-container {
+            width: 100%;
+            height: 4px;
+            background: rgba(15, 23, 42, 0.8);
+            border-radius: 2px;
+            overflow: hidden;
+        }
+
+        .vu-meter-bar {
+            height: 100%;
+            width: 0%;
+            background: linear-gradient(90deg, #10B981, #00F5D4, #F43F5E);
+            transition: width 0.08s ease;
+        }
+
+        .block-meta {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            font-size: 0.72rem;
+            color: var(--text-muted);
+        }
+
+        .role-badge {
+            font-size: 0.62rem;
+            padding: 1px 5px;
+            border-radius: 4px;
+            background: rgba(148, 163, 184, 0.15);
+            font-weight: 600;
+        }
+
+        .role-badge.host {
+            color: #38BDF8;
+            background: rgba(56, 189, 248, 0.12);
+        }
+
+        .role-badge.participant {
+            color: #A78BFA;
+            background: rgba(167, 139, 250, 0.12);
+        }
+
+        .block-controls {
+            display: grid;
+            grid-template-columns: 1fr 1fr auto auto auto;
+            align-items: center;
+            gap: 0.35rem;
+        }
+
+        /* Buttons & Switches */
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 5px;
+            padding: 0.38rem 0.65rem;
+            font-size: 0.78rem;
+            font-weight: 600;
+            border-radius: var(--radius-md);
+            border: 1px solid var(--border);
+            background: var(--surface-card);
+            color: var(--text);
+            cursor: pointer;
+            transition: all 0.15s ease;
+            user-select: none;
+            white-space: nowrap;
+        }
+
+        .btn:hover {
+            background: var(--surface-hover);
+            border-color: #475569;
+        }
+
+        .btn.active {
+            background: var(--primary);
+            color: #0F172A;
+            border-color: var(--primary);
+        }
+
+        .btn.btn-sm {
+            padding: 0.25rem 0.45rem;
+            font-size: 0.72rem;
+        }
+
+        .btn-track {
+            padding: 0.25rem 0.45rem;
+            font-size: 0.72rem;
+            border-radius: 6px;
+            border: 1px solid var(--border);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 3px;
+            transition: all 0.15s ease;
+        }
+
+        .btn-track.track-on {
+            background: rgba(16, 185, 129, 0.15);
+            border-color: rgba(16, 185, 129, 0.4);
+            color: #34D399;
+        }
+
+        .btn-track.track-off {
+            background: rgba(244, 63, 94, 0.12);
+            border-color: rgba(244, 63, 94, 0.35);
+            color: #FB7185;
+        }
+
+        .btn.btn-record {
+            background: var(--alert);
+            border-color: var(--alert);
+            color: white;
+        }
+
+        .btn.btn-record:hover {
+            background: #E11D48;
+        }
+
+        .btn.btn-recording {
+            animation: pulse-red 1.5s infinite;
+            background: #BE123C;
+        }
+
+        .btn.btn-broadcast {
+            background: rgba(0, 245, 212, 0.18);
+            border-color: rgba(0, 245, 212, 0.4);
+            color: var(--accent);
+        }
+
+        .btn.btn-broadcast:hover {
+            background: rgba(0, 245, 212, 0.28);
+        }
+
+        .btn.btn-broadcasting {
+            background: var(--accent);
+            color: #0F172A;
+            border-color: var(--accent);
+            box-shadow: 0 0 14px var(--accent-glow);
+        }
+
+        /* Master Controls Bar */
+        .controls-bar {
+            height: 56px;
+            background: var(--dark-base);
+            border-top: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 1.25rem;
+            flex-shrink: 0;
+            gap: 0.5rem;
+        }
+
+        .controls-group {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        /* Modal Dialogs */
+        dialog {
+            background: var(--surface);
+            color: var(--text);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-lg);
+            padding: 1.5rem;
+            margin: auto;
+            max-width: 540px;
+            width: 92vw;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.8);
+        }
+
+        dialog::backdrop {
+            background: rgba(11, 15, 23, 0.8);
+            backdrop-filter: blur(5px);
+        }
+
+        .dialog-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 1.25rem;
+        }
+
+        .dialog-title {
+            font-size: 1.15rem;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .dialog-close {
+            background: none;
+            border: none;
+            color: var(--text-muted);
+            cursor: pointer;
+            padding: 4px;
+        }
+
+        .dialog-body {
+            display: flex;
+            flex-direction: column;
+            gap: 1.15rem;
+            font-size: 0.88rem;
+        }
+
+        .form-group {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .form-label {
+            font-size: 0.73rem;
+            font-weight: 700;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .form-select, .form-input, .form-textarea {
+            background: var(--dark-base);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-md);
+            color: var(--text);
+            padding: 0.5rem 0.75rem;
+            font-size: 0.85rem;
+            outline: none;
+            font-family: inherit;
+        }
+
+        .form-select:focus, .form-input:focus, .form-textarea:focus {
+            border-color: var(--primary);
+        }
+
+        .radio-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 0.5rem;
+        }
+
+        .radio-card {
+            border: 1px solid var(--border);
+            border-radius: var(--radius-md);
+            padding: 0.6rem;
+            cursor: pointer;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            transition: all 0.2s;
+        }
+
+        .radio-card.selected {
+            border-color: var(--primary);
+            background: rgba(56, 189, 248, 0.1);
+        }
+
+        .radio-card-title {
+            font-size: 0.8rem;
+            font-weight: 600;
+        }
+
+        .radio-card-desc {
+            font-size: 0.7rem;
+            color: var(--text-muted);
+        }
+
+        .emoji-bar {
+            display: flex;
+            gap: 0.5rem;
+        }
+
+        .emoji-btn {
+            font-size: 1.35rem;
+            background: var(--surface-card);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 6px 10px;
+            cursor: pointer;
+            transition: transform 0.15s ease;
+        }
+
+        .emoji-btn:hover {
+            transform: scale(1.2);
+        }
+
+        /* Hotkey cheat sheet table */
+        .hotkey-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.85rem;
+        }
+
+        .hotkey-table th {
+            text-align: left;
+            padding: 6px 8px;
+            color: var(--text-muted);
+            font-size: 0.72rem;
+            text-transform: uppercase;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .hotkey-table td {
+            padding: 8px;
+            border-bottom: 1px solid rgba(51, 65, 85, 0.4);
+        }
+
+        .kbd-key {
+            display: inline-block;
+            background: var(--dark-base);
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            padding: 2px 7px;
+            font-family: monospace;
+            font-size: 0.8rem;
+            font-weight: 700;
+            color: var(--accent);
         }
     </style>
 </head>
 
 <body>
+    <!-- Studio Header -->
     <header>
-        <span class="left logo">Vyz</span>
-        <span class="right"></span>
+        <div class="logo-group">
+            <span class="logo">VYZ</span>
+            <span class="tag-pill">Broadcast Studio</span>
+            <div id="broadcast-badge" class="broadcast-indicator">
+                <span class="material-symbols-outlined" style="font-size: 0.95rem;">sensors</span>
+                <span id="broadcast-status-text">OFF AIR</span>
+            </div>
+            <span id="room-status-badge" style="font-size: 0.75rem; color: var(--text-muted); margin-left: 8px;">
+                ● Room: vyz-studio
+            </span>
+        </div>
+
+        <div class="header-actions">
+            <button id="btn-open-webrtc-config" class="btn btn-sm" title="Configure Public & Custom STUN/TURN WebRTC Servers">
+                <span class="material-symbols-outlined" style="font-size: 0.95rem;">cloud</span>
+                <span>WebRTC Servers</span>
+            </button>
+            <button id="btn-open-invite" class="btn btn-sm" title="Invite another camera, screen, or remote participant">
+                <span class="material-symbols-outlined" style="font-size: 0.95rem;">share</span>
+                <span>Invite Peer</span>
+            </button>
+            <button id="btn-open-hotkeys" class="btn btn-sm" title="Keyboard Shortcuts Cheat Sheet (?)">
+                <span class="material-symbols-outlined" style="font-size: 0.95rem;">keyboard</span>
+                <span>Hotkeys</span>
+            </button>
+        </div>
     </header>
+
+    <!-- Main Canvas Viewport -->
     <main>
-        <div class="container">
-            <div id="canvas-equiv" class="layout-pip">
-                <div class="recording-indicator" id="recording-indicator">
-                    <div class="recording-dot"></div>
+        <div class="stage-area">
+            <div id="canvas-container" class="canvas-container">
+                <!-- Recording Badge -->
+                <div id="recording-badge" class="status-badge recording-badge">
+                    <div class="rec-dot"></div>
                     <span>REC</span>
-                    <span id="recording-time">0:00</span>
+                    <span id="recording-timer-text">0:00</span>
                 </div>
-                <div class="empty-state">
-                    <div class="icon">
-                        <span class="material-symbols-outlined" style="font-size: inherit;">videocam_off</span>
-                    </div>
-                    <div class="message">No active feeds</div>
-                    <div class="sub-message">Turn on Camera or Screen Share to begin</div>
+                <!-- Broadcast Badge -->
+                <div id="broadcast-overlay-badge" class="status-badge broadcast-overlay-badge">
+                    <div class="air-dot"></div>
+                    <span>LIVE ON AIR</span>
                 </div>
-                <video id="camera" data-is-active="false" data-object-fit="cover" autoplay muted playsinline></video>
-                <video id="screen-share" data-is-active="false" data-object-fit="cover" autoplay muted
-                    playsinline></video>
+                <canvas id="studio-canvas"></canvas>
             </div>
         </div>
-        <div class="controls">
-            <span id="toggle-camera" class="btn">
+
+        <!-- Source Blocks Tray -->
+        <div class="blocks-shelf">
+            <div class="shelf-header">
+                <div class="shelf-title">
+                    <span class="material-symbols-outlined" style="font-size: 1.05rem; color: var(--primary);">grid_view</span>
+                    <span>Media Sources (Independent Audio & Video Toggles)</span>
+                </div>
+                <div class="shelf-actions">
+                    <span style="font-size: 0.72rem; color: var(--text-muted);">
+                        Host or Source Owner can toggle individual Audio & Video tracks
+                    </span>
+                </div>
+            </div>
+
+            <div id="blocks-list" class="blocks-list">
+                <!-- Dynamically populated source cards -->
+            </div>
+        </div>
+    </main>
+
+    <!-- Master Studio Controls Bar -->
+    <footer class="controls-bar">
+        <!-- Source Ingestion -->
+        <div class="controls-group">
+            <button id="btn-add-camera" class="btn" title="Add Camera Feed (Key: V)">
                 <span class="material-symbols-outlined">videocam</span>
-                <span>Camera</span>
-            </span>
-            <span id="toggle-mic" class="btn">
-                <span class="material-symbols-outlined">mic</span>
-                <span>Mic</span>
-            </span>
-            <span id="toggle-screenshare" class="btn">
+                <span>+ Camera</span>
+            </button>
+            <button id="btn-add-screen" class="btn" title="Add Screen Share Source">
                 <span class="material-symbols-outlined">screen_share</span>
-                <span>Screen Share</span>
-            </span>
-            <span class="btn active" id="change-aspect-ratio">
-                <span class="material-symbols-outlined">aspect_ratio</span>
-                <span id="aspect-ratio-text">16:9</span>
-            </span>
-            <span id="change-orientation" class="btn active">
-                <span class="material-symbols-outlined" id="orientation-icon">landscape</span>
-                <span id="orientation-text">Landscape</span>
-            </span>
-            <span id="change-layout" class="btn" disabled>
-                <span class="material-symbols-outlined">grid_view</span>
-                <span id="layout-text">Layout</span>
-            </span>
-            <span id="swap-feeds" class="btn" disabled>
-                <span class="material-symbols-outlined">swap_horiz</span>
-                <span>Swap</span>
-            </span>
-            <span id="change-pip-position" class="btn" disabled>
-                <span class="material-symbols-outlined">picture_in_picture_alt</span>
-                <span id="pip-position-text">Position</span>
-            </span>
-            <span id="toggle-record" class="btn">
-                <span class="material-symbols-outlined">screen_record</span>
-                <span>Record</span>
-            </span>
+                <span>+ Screen</span>
+            </button>
+            <button id="btn-add-mic" class="btn" title="Add Audio / Speech-to-Text Source (Key: M)">
+                <span class="material-symbols-outlined">mic</span>
+                <span>+ Mic</span>
+            </button>
+            <button id="btn-add-simulated" class="btn btn-sm" title="Add Simulated Remote Guest">
+                <span class="material-symbols-outlined">person_add</span>
+                <span>+ Simulated</span>
+            </button>
         </div>
 
-        <canvas id="rendering-canvas"
-            style="position: absolute; left: 120dvw; top: 0dvh; min-width: 100dvw; min-height: 100dvh;"></canvas>
+        <!-- Layout & Master Scene Control -->
+        <div class="controls-group">
+            <button id="btn-aspect-ratio" class="btn" title="Aspect Ratio (Key: A)">
+                <span class="material-symbols-outlined">aspect_ratio</span>
+                <span id="aspect-ratio-text">16:9</span>
+            </button>
+            <button id="btn-layout" class="btn" title="Switch Layout (Keys: 1-5)">
+                <span class="material-symbols-outlined">dashboard</span>
+                <span id="layout-text">Grid</span>
+            </button>
+            <button id="btn-master-fx" class="btn" title="Apply Master Studio Output Filter">
+                <span class="material-symbols-outlined">auto_fix_high</span>
+                <span>Master FX</span>
+            </button>
+        </div>
 
-    </main>
-    <footer style="text-align: center;">
-        Vyz • Captured with ❤️ in Islamabad
+        <!-- Broadcast & Recording Egress -->
+        <div class="controls-group">
+            <button id="btn-broadcast" class="btn btn-broadcast" title="Broadcast Merged Output to Peers (Key: B)">
+                <span class="material-symbols-outlined">sensors</span>
+                <span id="broadcast-btn-text">Go Live</span>
+            </button>
+            <button id="btn-record" class="btn btn-record" title="Record Studio Output to File (Key: R / Space)">
+                <span class="material-symbols-outlined">radio_button_checked</span>
+                <span id="record-btn-text">Record Studio</span>
+            </button>
+        </div>
     </footer>
 
+    <!-- Pipeline & Filter Inspector Dialog -->
+    <dialog id="pipeline-dialog">
+        <div class="dialog-header">
+            <div class="dialog-title">
+                <span class="material-symbols-outlined" style="color: var(--primary);">tune</span>
+                <span id="pipeline-dialog-title">Source Pipeline & Filters</span>
+            </div>
+            <button id="btn-close-pipeline-dialog" class="dialog-close">
+                <span class="material-symbols-outlined">close</span>
+            </button>
+        </div>
+        <div class="dialog-body">
+            <!-- Filter Presets & MediaPipe Bokeh Blur -->
+            <div class="form-group">
+                <span class="form-label">Visual Filter / MediaPipe Preset</span>
+                <select id="filter-preset-select" class="form-select">
+                    <option value="none">None (Clean Natural)</option>
+                    <option value="bokeh">MediaPipe Bokeh (Background Depth Blur)</option>
+                    <option value="vibrant">Studio Pop (Vibrant)</option>
+                    <option value="cinema">Cinematic Warm (Teal & Orange)</option>
+                    <option value="mono">Black & White Studio</option>
+                    <option value="sharpen">Sharpen (Crisp Code / Screen)</option>
+                    <option value="vintage">35mm Vintage Film & Scanlines</option>
+                    <option value="neon">Cyberpunk Neon Edge</option>
+                    <option value="cyberpunk">Cyberpunk Saturated Hue</option>
+                </select>
+            </div>
+
+            <!-- Custom Filter Plugins -->
+            <div class="form-group" style="background: rgba(15, 23, 42, 0.5); padding: 10px; border-radius: 8px; border: 1px solid var(--border);">
+                <span class="form-label">Custom Filter Plugin (URL or File)</span>
+                <div style="display: flex; gap: 8px; margin-top: 4px;">
+                    <select id="custom-filter-select" class="form-select" style="flex: 1;">
+                        <option value="">-- No Custom Filter --</option>
+                    </select>
+                </div>
+                <div style="display: flex; gap: 8px; margin-top: 8px;">
+                    <input type="text" id="custom-filter-url-input" class="form-input" placeholder="https://example.com/filter.js" style="flex: 1;" />
+                    <button id="btn-load-filter-url" class="btn btn-sm">Load URL</button>
+                </div>
+                <div style="margin-top: 8px; display: flex; align-items: center; justify-content: space-between;">
+                    <span style="font-size: 0.75rem; color: var(--text-muted);">Or upload .js filter file:</span>
+                    <input type="file" id="custom-filter-file-input" accept=".js,.json" style="font-size: 0.75rem;" />
+                </div>
+            </div>
+
+            <!-- Live Subtitles -->
+            <div class="form-group">
+                <span class="form-label">Live Closed Captions</span>
+                <div style="display: flex; align-items: center; justify-content: space-between;">
+                    <span style="font-size: 0.85rem;">Render Subtitles on this Block</span>
+                    <input type="checkbox" id="subtitles-toggle" checked style="transform: scale(1.2); cursor: pointer;" />
+                </div>
+                <div style="margin-top: 6px;">
+                    <input type="text" id="manual-subtitle-input" class="form-input" placeholder="Test caption or speaks via Mic..." style="width: 100%;" />
+                </div>
+            </div>
+
+            <!-- AR Overlays & Emojis -->
+            <div class="form-group">
+                <span class="form-label">AR Overlays & Reactions</span>
+                <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;">
+                    <span style="font-size: 0.85rem;">Active Speaker Border Glow</span>
+                    <input type="checkbox" id="speaker-glow-toggle" checked style="transform: scale(1.2); cursor: pointer;" />
+                </div>
+                <div class="emoji-bar">
+                    <button class="emoji-btn" data-emoji="🔥">🔥</button>
+                    <button class="emoji-btn" data-emoji="🚀">🚀</button>
+                    <button class="emoji-btn" data-emoji="👍">👍</button>
+                    <button class="emoji-btn" data-emoji="❤️">❤️</button>
+                    <button class="emoji-btn" data-emoji="🎉">🎉</button>
+                </div>
+            </div>
+        </div>
+    </dialog>
+
+    <!-- Master Output Filter Dialog -->
+    <dialog id="master-fx-dialog">
+        <div class="dialog-header">
+            <div class="dialog-title">
+                <span class="material-symbols-outlined" style="color: var(--accent);">auto_fix_high</span>
+                <span>Master Studio Output Filters</span>
+            </div>
+            <button id="btn-close-master-fx-dialog" class="dialog-close">
+                <span class="material-symbols-outlined">close</span>
+            </button>
+        </div>
+        <div class="dialog-body">
+            <p style="font-size: 0.82rem; color: var(--text-muted);">
+                Post-processing filters applied globally to the combined studio canvas before broadcast and recording.
+            </p>
+            <div class="form-group">
+                <span class="form-label">Master Preset</span>
+                <select id="master-filter-preset-select" class="form-select">
+                    <option value="none">None (Clean Studio Feed)</option>
+                    <option value="vintage">35mm Film Grain, Vignette & Scanlines</option>
+                    <option value="cinema">Cinema Color Grade (Teal & Orange)</option>
+                    <option value="mono">Noir High-Contrast Black & White</option>
+                    <option value="vibrant">Vibrant Pop</option>
+                    <option value="cyberpunk">Cyberpunk Night City</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <span class="form-label">Master Custom Filter</span>
+                <select id="master-custom-filter-select" class="form-select">
+                    <option value="">-- No Custom Master Filter --</option>
+                </select>
+            </div>
+        </div>
+    </dialog>
+
+    <!-- WebRTC Server Config Dialog -->
+    <dialog id="webrtc-dialog">
+        <div class="dialog-header">
+            <div class="dialog-title">
+                <span class="material-symbols-outlined" style="color: var(--primary);">cloud</span>
+                <span>WebRTC ICE Servers (Public & Custom)</span>
+            </div>
+            <button id="btn-close-webrtc-dialog" class="dialog-close">
+                <span class="material-symbols-outlined">close</span>
+            </button>
+        </div>
+        <div class="dialog-body">
+            <p style="font-size: 0.8rem; color: var(--text-muted);">
+                By default, Vyz connects via Google & Cloudflare public STUN servers for zero-setup peer streaming. Add custom STUN/TURN servers below for enterprise relays or restricted NAT environments:
+            </p>
+            <div class="form-group">
+                <span class="form-label">ICE Servers JSON / URLs (Array of RTCIceServer)</span>
+                <textarea id="webrtc-servers-textarea" class="form-textarea" rows="6" placeholder='[
+  { "urls": "stun:stun.l.google.com:19302" },
+  { "urls": "turn:your-turn-server.com:3478", "username": "user", "credential": "password" }
+]'></textarea>
+            </div>
+            <div style="display: flex; gap: 8px; justify-content: flex-end;">
+                <button id="btn-reset-webrtc" class="btn">Reset to Public STUN</button>
+                <button id="btn-save-webrtc" class="btn active">Save Configuration</button>
+            </div>
+        </div>
+    </dialog>
+
+    <!-- Hotkeys Cheat Sheet Dialog -->
+    <dialog id="hotkeys-dialog">
+        <div class="dialog-header">
+            <div class="dialog-title">
+                <span class="material-symbols-outlined" style="color: var(--accent);">keyboard</span>
+                <span>Broadcast Studio Keyboard Shortcuts</span>
+            </div>
+            <button id="btn-close-hotkeys-dialog" class="dialog-close">
+                <span class="material-symbols-outlined">close</span>
+            </button>
+        </div>
+        <div class="dialog-body">
+            <table class="hotkey-table">
+                <thead>
+                    <tr>
+                        <th>Key</th>
+                        <th>Action</th>
+                        <th>Description</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><span class="kbd-key">Space</span> or <span class="kbd-key">R</span></td>
+                        <td><b>Record Studio</b></td>
+                        <td>Start / stop high-bitrate studio recording (.webm)</td>
+                    </tr>
+                    <tr>
+                        <td><span class="kbd-key">B</span></td>
+                        <td><b>Go Live</b></td>
+                        <td>Broadcast merged studio stream to room peers</td>
+                    </tr>
+                    <tr>
+                        <td><span class="kbd-key">V</span></td>
+                        <td><b>Toggle Camera</b></td>
+                        <td>Turn primary camera video track on / off</td>
+                    </tr>
+                    <tr>
+                        <td><span class="kbd-key">M</span></td>
+                        <td><b>Toggle Mic</b></td>
+                        <td>Turn primary microphone audio track on / off</td>
+                    </tr>
+                    <tr>
+                        <td><span class="kbd-key">1</span> – <span class="kbd-key">5</span></td>
+                        <td><b>Switch Layouts</b></td>
+                        <td>1: Grid, 2: Side, 3: Stack, 4: PiP, 5: Solo</td>
+                    </tr>
+                    <tr>
+                        <td><span class="kbd-key">A</span></td>
+                        <td><b>Aspect Ratio</b></td>
+                        <td>Cycle aspect ratios (16:9, 9:16, 1:1, 4:3)</td>
+                    </tr>
+                    <tr>
+                        <td><span class="kbd-key">F</span></td>
+                        <td><b>Fullscreen</b></td>
+                        <td>Toggle fullscreen preview on studio canvas</td>
+                    </tr>
+                    <tr>
+                        <td><span class="kbd-key">?</span></td>
+                        <td><b>Shortcuts Help</b></td>
+                        <td>Open this keybindings cheat sheet</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </dialog>
+
+    <!-- Sovereign Permission Dialog Modal -->
+    <dialog id="permission-dialog">
+        <div class="dialog-header">
+            <div class="dialog-title">
+                <span class="material-symbols-outlined" style="color: var(--alert);">security</span>
+                <span>Remote Access Permission</span>
+            </div>
+        </div>
+        <div class="dialog-body">
+            <p id="permission-dialog-text">
+                The studio host is requesting permission to stream your media feed into the recording.
+            </p>
+            <div style="display: flex; gap: 0.75rem; justify-content: flex-end; margin-top: 1rem;">
+                <button id="btn-deny-permission" class="btn">Deny</button>
+                <button id="btn-grant-permission" class="btn active">Grant Permission</button>
+            </div>
+        </div>
+    </dialog>
+
+    <!-- Peer Invite Dialog Modal -->
+    <dialog id="invite-dialog">
+        <div class="dialog-header">
+            <div class="dialog-title">
+                <span class="material-symbols-outlined" style="color: var(--primary);">group_add</span>
+                <span>Invite Participant / Co-Host</span>
+            </div>
+            <button id="btn-close-invite-dialog" class="dialog-close">
+                <span class="material-symbols-outlined">close</span>
+            </button>
+        </div>
+        <div class="dialog-body">
+            <p>Open this studio link in another tab, device, or send to a guest:</p>
+            <input type="text" id="invite-link-input" class="form-input" readonly />
+            <button id="btn-copy-invite" class="btn active" style="width: 100%;">
+                <span class="material-symbols-outlined">content_copy</span>
+                <span>Copy Invite Link</span>
+            </button>
+        </div>
+    </dialog>
+
+    <!-- Core Architecture Modules -->
+    <script src="src/pipeline/PipelineDataBus.js"></script>
+    <script src="src/pipeline/MediaPipeline.js"></script>
+    <script src="src/blocks/MediaBlock.js"></script>
+    <script src="src/compositor/DynamicCompositor.js"></script>
+    <script src="src/network/PeerRPC.js"></script>
+
+    <!-- Studio Application Orchestrator -->
     <script>
-        // State management
-        const state = {
-            orientation: 'landscape',
-            aspectRatioIndex: 2,
-            layout: 'pip', // 'solo', 'side', 'stack', 'pip'
-            swapped: false,
-            pipPosition: 'bottom-right', // 'bottom-right', 'bottom-left', 'top-right', 'top-left'
-            cameraActive: false,
-            screenShareActive: false,
-            micActive: false,
-            recording: false
-        };
+        document.addEventListener('DOMContentLoaded', () => {
+            const dataBus = window.globalDataBus || new PipelineDataBus();
 
-        // Aspect ratios for landscape and portrait
-        const aspectRatios = {
-            landscape: [
-                { ratio: '1/1', text: '1:1' },
-                { ratio: '4/3', text: '4:3' },
-                { ratio: '16/9', text: '16:9' }
-            ],
-            portrait: [
-                { ratio: '1/1', text: '1:1' },
-                { ratio: '3/4', text: '3:4' },
-                { ratio: '9/16', text: '9:16' }
-            ]
-        };
+            // Studio Canvas & Compositor
+            const canvas = document.getElementById('studio-canvas');
+            const canvasContainer = document.getElementById('canvas-container');
+            const compositor = new DynamicCompositor(canvas, {
+                aspectRatio: '16/9',
+                layout: 'grid'
+            });
 
-        // Layout cycle for dual feeds
-        const layoutCycle = ['side', 'stack', 'pip'];
-
-        // PiP position cycle
-        const pipPositionCycle = ['bottom-right', 'bottom-left', 'top-left', 'top-right'];
-
-        // DOM elements
-        const canvasEquiv = document.getElementById('canvas-equiv');
-        const cameraVideo = document.getElementById('camera');
-        const screenShareVideo = document.getElementById('screen-share');
-        const renderingCanvas = document.getElementById('rendering-canvas');
-        const recordingIndicator = document.getElementById('recording-indicator');
-        const recordingTimeDisplay = document.getElementById('recording-time');
-
-        const toggleCameraBtn = document.getElementById('toggle-camera');
-        const toggleMicBtn = document.getElementById('toggle-mic');
-        const toggleScreenShareBtn = document.getElementById('toggle-screenshare');
-        const aspectRatioBtn = document.getElementById('change-aspect-ratio');
-        const aspectRatioText = document.getElementById('aspect-ratio-text');
-        const orientationBtn = document.getElementById('change-orientation');
-        const orientationIcon = document.getElementById('orientation-icon');
-        const orientationText = document.getElementById('orientation-text');
-        const changeLayoutBtn = document.getElementById('change-layout');
-        const layoutText = document.getElementById('layout-text');
-        const swapFeedsBtn = document.getElementById('swap-feeds');
-        const changePipPositionBtn = document.getElementById('change-pip-position');
-        const pipPositionText = document.getElementById('pip-position-text');
-        const toggleRecordBtn = document.getElementById('toggle-record');
-
-        // Media streams
-        let cameraStream = null;
-        let screenStream = null;
-
-        // Recording
-        let mediaRecorder = null;
-        let recordedChunks = [];
-        let recordingStartTime = null;
-        let recordingTimer = null;
-        let animationFrameId = null;
-
-        // Update canvas aspect ratio
-        function updateAspectRatio() {
-            const currentRatios = aspectRatios[state.orientation];
-            const currentRatio = currentRatios[state.aspectRatioIndex];
-            canvasEquiv.style.aspectRatio = currentRatio.ratio;
-            aspectRatioText.textContent = currentRatio.text;
-        }
-
-        // Update orientation display
-        function updateOrientation() {
-            if (state.orientation === 'landscape') {
-                orientationIcon.textContent = 'landscape';
-                orientationText.textContent = 'Landscape';
-            } else {
-                orientationIcon.textContent = 'portrait';
-                orientationText.textContent = 'Portrait';
-            }
-        }
-
-        // Determine and update layout based on active feeds
-        function updateLayout() {
-            const bothActive = state.cameraActive && state.screenShareActive;
-            const oneActive = state.cameraActive || state.screenShareActive;
-
-            // Update layout class
-            canvasEquiv.className = '';
-
-            if (bothActive) {
-                canvasEquiv.classList.add(`layout-${state.layout}`);
-                if (state.swapped) {
-                    canvasEquiv.classList.add('swapped');
-                }
-                if (state.layout === 'pip') {
-                    canvasEquiv.classList.add(`pip-${state.pipPosition}`);
-                }
-            } else if (oneActive) {
-                canvasEquiv.classList.add('layout-solo');
-            }
-
-            // Update button states
-            changeLayoutBtn.disabled = !bothActive;
-            swapFeedsBtn.disabled = !bothActive;
-            changePipPositionBtn.disabled = !(bothActive && state.layout === 'pip');
-
-            // Update layout text
-            const layoutNames = {
-                'side': 'Side',
-                'stack': 'Stack',
-                'pip': 'PiP'
+            // Application State
+            const state = {
+                aspectRatios: ['16/9', '9:16', '1:1', '4:3'],
+                aspectRatioIndex: 0,
+                layouts: ['grid', 'side', 'stack', 'pip', 'solo'],
+                layoutIndex: 0,
+                recording: false,
+                broadcasting: false,
+                mediaRecorder: null,
+                recordedChunks: [],
+                recordingStartTime: null,
+                recordingTimerId: null,
+                speechRecognition: null,
+                simulatedCount: 0,
+                sources: new Map() // sourceId -> MediaBlock
             };
 
-            if (bothActive) {
-                layoutText.textContent = layoutNames[state.layout];
-            } else {
-                layoutText.textContent = layoutNames[state.layout] || 'Layout';
-            }
+            // URL Parameters
+            const urlParams = new URLSearchParams(window.location.search);
+            const userRole = urlParams.get('role') || 'host'; // 'host' | 'participant' | 'viewer'
+            const roomId = urlParams.get('room') || 'vyz-studio';
+            const userName = urlParams.get('name') || (userRole === 'host' ? 'Studio Host' : `Guest-${Math.random().toString(36).substr(2, 4)}`);
 
-            // Update PiP position text
-            if (state.layout === 'pip') {
-                const posNames = {
-                    'bottom-right': 'BR',
-                    'bottom-left': 'BL',
-                    'top-left': 'TL',
-                    'top-right': 'TR'
-                };
-                pipPositionText.textContent = posNames[state.pipPosition];
-            } else {
-                pipPositionText.textContent = 'Position';
-            }
-        }
+            // Network Peer RPC
+            const peerRPC = new PeerRPC({
+                role: userRole,
+                roomId: roomId,
+                userName: userName,
+                dataBus: dataBus
+            });
 
-        // Toggle camera
-        async function toggleCamera() {
-            if (!state.cameraActive) {
-                try {
-                    cameraStream = await navigator.mediaDevices.getUserMedia({
-                        video: { width: 1920, height: 1080 },
-                        audio: true // Enable audio from camera/microphone
+            // DOM References
+            const blocksListEl = document.getElementById('blocks-list');
+            const btnAddCamera = document.getElementById('btn-add-camera');
+            const btnAddScreen = document.getElementById('btn-add-screen');
+            const btnAddMic = document.getElementById('btn-add-mic');
+            const btnAddSimulated = document.getElementById('btn-add-simulated');
+            const btnAspectRatio = document.getElementById('btn-aspect-ratio');
+            const aspectRatioText = document.getElementById('aspect-ratio-text');
+            const btnLayout = document.getElementById('btn-layout');
+            const layoutText = document.getElementById('layout-text');
+            const btnMasterFx = document.getElementById('btn-master-fx');
+            const btnRecord = document.getElementById('btn-record');
+            const recordBtnText = document.getElementById('record-btn-text');
+            const btnBroadcast = document.getElementById('btn-broadcast');
+            const broadcastBtnText = document.getElementById('broadcast-btn-text');
+            const broadcastBadge = document.getElementById('broadcast-badge');
+            const broadcastStatusText = document.getElementById('broadcast-status-text');
+            const broadcastOverlayBadge = document.getElementById('broadcast-overlay-badge');
+            const recordingBadge = document.getElementById('recording-badge');
+            const recordingTimerText = document.getElementById('recording-timer-text');
+            const roomStatusBadge = document.getElementById('room-status-badge');
+
+            // Modals
+            const pipelineDialog = document.getElementById('pipeline-dialog');
+            const btnClosePipelineDialog = document.getElementById('btn-close-pipeline-dialog');
+            const pipelineDialogTitle = document.getElementById('pipeline-dialog-title');
+            const filterPresetSelect = document.getElementById('filter-preset-select');
+            const customFilterSelect = document.getElementById('custom-filter-select');
+            const customFilterUrlInput = document.getElementById('custom-filter-url-input');
+            const btnLoadFilterUrl = document.getElementById('btn-load-filter-url');
+            const customFilterFileInput = document.getElementById('custom-filter-file-input');
+            const subtitlesToggle = document.getElementById('subtitles-toggle');
+            const manualSubtitleInput = document.getElementById('manual-subtitle-input');
+            const speakerGlowToggle = document.getElementById('speaker-glow-toggle');
+
+            const masterFxDialog = document.getElementById('master-fx-dialog');
+            const btnCloseMasterFxDialog = document.getElementById('btn-close-master-fx-dialog');
+            const masterFilterPresetSelect = document.getElementById('master-filter-preset-select');
+            const masterCustomFilterSelect = document.getElementById('master-custom-filter-select');
+
+            const webrtcDialog = document.getElementById('webrtc-dialog');
+            const btnOpenWebrtcConfig = document.getElementById('btn-open-webrtc-config');
+            const btnCloseWebrtcDialog = document.getElementById('btn-close-webrtc-dialog');
+            const webrtcServersTextarea = document.getElementById('webrtc-servers-textarea');
+            const btnSaveWebrtc = document.getElementById('btn-save-webrtc');
+            const btnResetWebrtc = document.getElementById('btn-reset-webrtc');
+
+            const hotkeysDialog = document.getElementById('hotkeys-dialog');
+            const btnOpenHotkeys = document.getElementById('btn-open-hotkeys');
+            const btnCloseHotkeysDialog = document.getElementById('btn-close-hotkeys-dialog');
+
+            const inviteDialog = document.getElementById('invite-dialog');
+            const btnOpenInvite = document.getElementById('btn-open-invite');
+            const btnCloseInviteDialog = document.getElementById('btn-close-invite-dialog');
+            const inviteLinkInput = document.getElementById('invite-link-input');
+            const btnCopyInvite = document.getElementById('btn-copy-invite');
+
+            let inspectedBlock = null;
+
+            // Setup Invite link
+            const inviteUrl = new URL(window.location.href);
+            inviteUrl.searchParams.set('room', roomId);
+            inviteUrl.searchParams.set('role', 'participant');
+            inviteLinkInput.value = inviteUrl.toString();
+
+            // Setup Header Info
+            roomStatusBadge.textContent = `● Room: ${roomId} • ${userRole === 'host' ? 'Studio Host' : 'Participant'} • STUN: Public`;
+
+            // Populate Custom Filters list
+            function updateCustomFilterDropdowns() {
+                customFilterSelect.innerHTML = '<option value="">-- No Custom Filter --</option>';
+                masterCustomFilterSelect.innerHTML = '<option value="">-- No Custom Filter --</option>';
+
+                MediaPipeline.customFilters.forEach((filter, id) => {
+                    const opt1 = document.createElement('option');
+                    opt1.value = id;
+                    opt1.textContent = filter.name || id;
+                    customFilterSelect.appendChild(opt1);
+
+                    const opt2 = document.createElement('option');
+                    opt2.value = id;
+                    opt2.textContent = filter.name || id;
+                    masterCustomFilterSelect.appendChild(opt2);
+                });
+            }
+            updateCustomFilterDropdowns();
+
+            // WebRTC Incoming Remote Streams
+            peerRPC.onRemoteStreamReceived = (peerId, stream, meta) => {
+                console.log(`[Studio] Received stream from ${peerId}:`, stream.id, meta);
+
+                const sourceId = meta.streamId || `remote-${peerId}`;
+                let block = compositor.blocks.find(b => b.id === sourceId);
+
+                if (!block) {
+                    block = new MediaBlock({
+                        id: sourceId,
+                        name: meta.isMergedBroadcast ? `${meta.name} (Program Feed)` : (meta.name || `Remote ${peerId}`),
+                        type: meta.isMergedBroadcast ? 'virtual' : 'remote',
+                        role: meta.role || 'participant',
+                        isRemote: true,
+                        participantId: peerId,
+                        stream: stream,
+                        permissionStatus: 'granted'
                     });
-                    cameraVideo.srcObject = cameraStream;
-                    cameraVideo.dataset.isActive = 'true';
-                    state.cameraActive = true;
-                    toggleCameraBtn.classList.add('active');
-                } catch (err) {
-                    console.error('Error accessing camera:', err);
-                    alert('Could not access camera');
+                    compositor.addBlock(block);
+                    state.sources.set(sourceId, block);
+                } else {
+                    block.attachStream(stream);
                 }
-            } else {
-                if (cameraStream) {
-                    cameraStream.getTracks().forEach(track => track.stop());
-                }
-                cameraVideo.srcObject = null;
-                cameraVideo.dataset.isActive = 'false';
-                state.cameraActive = false;
-                toggleCameraBtn.classList.remove('active');
-            }
-            updateLayout();
-        }
 
-        // Toggle screen share
-        async function toggleScreenShare() {
-            if (!state.screenShareActive) {
+                renderBlocksTray();
+            };
+
+            peerRPC.onRemoteStreamRemoved = (peerId, streamId) => {
+                const targetId = streamId || `remote-${peerId}`;
+                compositor.removeBlock(targetId);
+                state.sources.delete(targetId);
+                renderBlocksTray();
+            };
+
+            peerRPC.onTrackToggleReceived = (msg) => {
+                console.log('[Studio] RPC Track toggle received:', msg);
+                const block = state.sources.get(msg.sourceId);
+                if (block) {
+                    if (msg.trackKind === 'video') {
+                        block.toggleVideo(msg.enabled);
+                    } else if (msg.trackKind === 'audio') {
+                        block.toggleAudio(msg.enabled);
+                    }
+                    renderBlocksTray();
+                }
+            };
+
+            // Render Source Cards in the Tray
+            function renderBlocksTray() {
+                blocksListEl.innerHTML = '';
+
+                if (compositor.blocks.length === 0) {
+                    blocksListEl.innerHTML = `
+                        <div style="font-size: 0.8rem; color: var(--text-muted); display: flex; align-items: center; gap: 8px; padding: 6px;">
+                            <span class="material-symbols-outlined" style="font-size: 1.1rem;">info</span>
+                            No media sources yet. Click <b>+ Camera</b>, <b>+ Screen</b>, or <b>+ Simulated</b> to begin.
+                        </div>
+                    `;
+                    return;
+                }
+
+                compositor.blocks.forEach(block => {
+                    const card = document.createElement('div');
+                    card.className = `block-card ${block.isActive ? 'active-feed' : 'disabled-feed'}`;
+                    card.id = `card-${block.id}`;
+
+                    let typeIcon = 'videocam';
+                    if (block.type === 'screen') typeIcon = 'screen_share';
+                    if (block.type === 'mic') typeIcon = 'mic';
+                    if (block.type === 'remote') typeIcon = 'sensors';
+                    if (block.type === 'virtual') typeIcon = 'desktop_windows';
+
+                    const isHost = userRole === 'host';
+                    const isOwner = !block.isRemote;
+                    const canControl = isHost || isOwner;
+
+                    card.innerHTML = `
+                        <div class="block-header">
+                            <div class="block-name" title="${block.name}">
+                                <span class="material-symbols-outlined" style="font-size: 1.05rem; color: ${block.accentColor};">${typeIcon}</span>
+                                <span>${block.name}</span>
+                            </div>
+                            <span class="role-badge ${block.role}">${block.role}</span>
+                        </div>
+
+                        <div class="vu-meter-container">
+                            <div class="vu-meter-bar" id="vu-bar-${block.id}"></div>
+                        </div>
+
+                        <div class="block-meta">
+                            <span>Fit: <b>${block.fitMode}</b></span>
+                            <span style="font-size: 0.68rem; color: var(--text-muted);">
+                                ${block.hasVideo ? (block.isVideoActive ? 'Video On' : 'Video Muted') : 'Audio-Only'}
+                            </span>
+                        </div>
+
+                        <div class="block-controls">
+                            <!-- Audio Track Toggle -->
+                            <button class="btn-track ${block.isAudioActive ? 'track-on' : 'track-off'}" 
+                                id="btn-audio-${block.id}" 
+                                title="${block.hasAudio ? 'Toggle Audio' : 'No Audio Track'}"
+                                ${!canControl || !block.hasAudio ? 'disabled style="opacity:0.4;"' : ''}>
+                                <span class="material-symbols-outlined" style="font-size: 0.9rem;">
+                                    ${block.isAudioActive ? 'mic' : 'mic_off'}
+                                </span>
+                            </button>
+
+                            <!-- Video Track Toggle -->
+                            <button class="btn-track ${block.isVideoActive ? 'track-on' : 'track-off'}" 
+                                id="btn-video-${block.id}" 
+                                title="${block.hasVideo ? 'Toggle Video' : 'Audio-Only Source'}"
+                                ${!canControl || !block.hasVideo ? 'disabled style="opacity:0.4;"' : ''}>
+                                <span class="material-symbols-outlined" style="font-size: 0.9rem;">
+                                    ${block.isVideoActive ? 'videocam' : 'videocam_off'}
+                                </span>
+                            </button>
+
+                            <!-- Fit Mode Toggle -->
+                            <button class="btn btn-sm" id="btn-fit-${block.id}" title="Toggle Cover / Contain">
+                                <span class="material-symbols-outlined" style="font-size: 0.9rem;">crop</span>
+                            </button>
+
+                            <!-- Pipeline FX Inspector -->
+                            <button class="btn btn-sm" id="btn-fx-${block.id}" title="MediaPipe & Filter FX">
+                                <span class="material-symbols-outlined" style="font-size: 0.9rem;">tune</span>
+                            </button>
+
+                            <!-- Remove Source -->
+                            <button class="btn btn-sm" id="btn-remove-${block.id}" title="Remove Source" ${!canControl ? 'disabled style="display:none;"' : ''}>
+                                <span class="material-symbols-outlined" style="font-size: 0.9rem; color: var(--alert);">close</span>
+                            </button>
+                        </div>
+                    `;
+
+                    // Audio Toggle Event
+                    const btnAudio = card.querySelector(`#btn-audio-${block.id}`);
+                    btnAudio.addEventListener('click', () => {
+                        const newAudio = block.toggleAudio();
+                        if (block.isRemote) {
+                            peerRPC.toggleSourceTrack(block.participantId, block.id, 'audio', newAudio);
+                        }
+                        compositor.updateAudioMixer();
+                        renderBlocksTray();
+                    });
+
+                    // Video Toggle Event
+                    const btnVideo = card.querySelector(`#btn-video-${block.id}`);
+                    btnVideo.addEventListener('click', () => {
+                        const newVideo = block.toggleVideo();
+                        if (block.isRemote) {
+                            peerRPC.toggleSourceTrack(block.participantId, block.id, 'video', newVideo);
+                        }
+                        renderBlocksTray();
+                    });
+
+                    // Fit Mode Event
+                    const btnFit = card.querySelector(`#btn-fit-${block.id}`);
+                    btnFit.addEventListener('click', () => {
+                        block.cycleFitMode();
+                        renderBlocksTray();
+                    });
+
+                    // Pipeline Inspector Event
+                    const btnFx = card.querySelector(`#btn-fx-${block.id}`);
+                    btnFx.addEventListener('click', () => {
+                        openPipelineDialog(block);
+                    });
+
+                    // Remove Source Event
+                    const btnRemove = card.querySelector(`#btn-remove-${block.id}`);
+                    if (btnRemove) {
+                        btnRemove.addEventListener('click', () => {
+                            compositor.removeBlock(block.id);
+                            state.sources.delete(block.id);
+                            if (!block.isRemote) {
+                                peerRPC.unregisterLocalSource(block.id);
+                            }
+                            block.destroy();
+                            renderBlocksTray();
+                        });
+                    }
+
+                    blocksListEl.appendChild(card);
+                });
+            }
+
+            // Real-Time VU Meter update subscriber
+            dataBus.subscribe('pipeline:audio:level', (evt) => {
+                const vuBar = document.getElementById(`vu-bar-${evt.sourceId}`);
+                if (vuBar) {
+                    const pct = Math.min(100, Math.round((evt.level || 0) * 100));
+                    vuBar.style.width = `${pct}%`;
+                }
+            });
+
+            // Aspect Ratio Changer
+            function updateAspectRatio() {
+                const ratio = state.aspectRatios[state.aspectRatioIndex];
+                canvasContainer.style.aspectRatio = ratio;
+                compositor.setAspectRatio(ratio);
+                aspectRatioText.textContent = ratio;
+            }
+
+            btnAspectRatio.addEventListener('click', () => {
+                state.aspectRatioIndex = (state.aspectRatioIndex + 1) % state.aspectRatios.length;
+                updateAspectRatio();
+            });
+
+            // Layout Changer
+            btnLayout.addEventListener('click', () => {
+                state.layoutIndex = (state.layoutIndex + 1) % state.layouts.length;
+                const newLayout = state.layouts[state.layoutIndex];
+                compositor.setLayout(newLayout);
+                layoutText.textContent = newLayout.charAt(0).toUpperCase() + newLayout.slice(1);
+            });
+
+            // --- Add Camera Source ---
+            btnAddCamera.addEventListener('click', async () => {
                 try {
-                    screenStream = await navigator.mediaDevices.getDisplayMedia({
+                    const stream = await navigator.mediaDevices.getUserMedia({
                         video: { width: 1920, height: 1080 },
                         audio: true
                     });
 
-                    // Handle when user stops sharing via browser UI
-                    screenStream.getVideoTracks()[0].addEventListener('ended', () => {
-                        toggleScreenShare();
+                    const sourceId = `cam-${Date.now()}`;
+                    const block = new MediaBlock({
+                        id: sourceId,
+                        name: `Camera ${state.sources.size + 1}`,
+                        type: 'camera',
+                        role: userRole,
+                        stream: stream
                     });
 
-                    screenShareVideo.srcObject = screenStream;
-                    screenShareVideo.dataset.isActive = 'true';
-                    state.screenShareActive = true;
-                    toggleScreenShareBtn.classList.add('active');
+                    compositor.addBlock(block);
+                    state.sources.set(sourceId, block);
+                    peerRPC.registerLocalSource(sourceId, stream, { name: block.name, type: 'camera' });
+                    renderBlocksTray();
                 } catch (err) {
-                    console.error('Error accessing screen share:', err);
-                    if (err.name !== 'NotAllowedError') {
-                        alert('Could not access screen share');
-                    }
+                    console.error('Camera access error:', err);
+                    alert('Could not access camera: ' + err.message);
                 }
-            } else {
-                if (screenStream) {
-                    screenStream.getTracks().forEach(track => track.stop());
-                }
-                screenShareVideo.srcObject = null;
-                screenShareVideo.dataset.isActive = 'false';
-                state.screenShareActive = false;
-                toggleScreenShareBtn.classList.remove('active');
-            }
-            updateLayout();
-        }
+            });
 
-        // Toggle mic (placeholder for now)
-        function toggleMic() {
-            state.micActive = !state.micActive;
-            toggleMicBtn.classList.toggle('active', state.micActive);
-            // TODO: Implement actual mic muting/unmuting
-        }
-
-        // Change layout
-        function changeLayout() {
-            if (!state.cameraActive || !state.screenShareActive) return;
-
-            const currentIndex = layoutCycle.indexOf(state.layout);
-            const nextIndex = (currentIndex + 1) % layoutCycle.length;
-            state.layout = layoutCycle[nextIndex];
-
-            // Reset swap when changing layouts
-            state.swapped = false;
-
-            updateLayout();
-        }
-
-        // Swap feeds
-        function swapFeeds() {
-            if (!state.cameraActive || !state.screenShareActive) return;
-
-            state.swapped = !state.swapped;
-            updateLayout();
-        }
-
-        // Change PiP position
-        function changePipPosition() {
-            if (state.layout !== 'pip') return;
-
-            const currentIndex = pipPositionCycle.indexOf(state.pipPosition);
-            const nextIndex = (currentIndex + 1) % pipPositionCycle.length;
-            state.pipPosition = pipPositionCycle[nextIndex];
-
-            updateLayout();
-        }
-
-        // Cycle object-fit on double click
-        function cycleObjectFit(videoElement) {
-            const currentFit = videoElement.dataset.objectFit || 'cover';
-            const fits = ['cover', 'contain'];
-            const currentIndex = fits.indexOf(currentFit);
-            const nextIndex = (currentIndex + 1) % fits.length;
-            const nextFit = fits[nextIndex];
-
-            videoElement.dataset.objectFit = nextFit;
-            console.log(`${videoElement.id} object-fit: ${nextFit}`);
-        }
-
-        // Setup canvas for recording
-        function setupCanvas() {
-            const ctx = renderingCanvas.getContext('2d');
-
-            // Get canvas dimensions based on aspect ratio
-            const aspectRatio = canvasEquiv.style.aspectRatio.split('/');
-            const width = 1920;
-            const height = Math.round(width / (parseFloat(aspectRatio[0]) / parseFloat(aspectRatio[1])));
-
-            renderingCanvas.width = width;
-            renderingCanvas.height = height;
-
-            return ctx;
-        }
-
-        // Draw current frame to canvas
-        function drawFrame(ctx) {
-            const width = renderingCanvas.width;
-            const height = renderingCanvas.height;
-
-            // Clear canvas
-            ctx.fillStyle = '#fefefe';
-            ctx.fillRect(0, 0, width, height);
-
-            // Helper function to draw video with proper object-fit
-            function drawVideoWithFit(video, x, y, w, h) {
-                if (!video || video.readyState < 2) return;
-
-                const objectFit = video.dataset.objectFit || 'cover';
-                const videoAspect = video.videoWidth / video.videoHeight;
-                const targetAspect = w / h;
-
-                let sx = 0, sy = 0, sw = video.videoWidth, sh = video.videoHeight;
-                let dx = x, dy = y, dw = w, dh = h;
-
-                if (objectFit === 'cover') {
-                    if (videoAspect > targetAspect) {
-                        // Video is wider - crop sides
-                        sw = video.videoHeight * targetAspect;
-                        sx = (video.videoWidth - sw) / 2;
-                    } else {
-                        // Video is taller - crop top/bottom
-                        sh = video.videoWidth / targetAspect;
-                        sy = (video.videoHeight - sh) / 2;
-                    }
-                } else if (objectFit === 'contain') {
-                    if (videoAspect > targetAspect) {
-                        // Video is wider - letterbox top/bottom
-                        dh = w / videoAspect;
-                        dy = y + (h - dh) / 2;
-                    } else {
-                        // Video is taller - letterbox sides
-                        dw = h * videoAspect;
-                        dx = x + (w - dw) / 2;
-                    }
-                }
-                // 'fill' uses full target dimensions (default behavior)
-
-                ctx.drawImage(video, sx, sy, sw, sh, dx, dy, dw, dh);
-            }
-
-            // Draw based on current layout
-            const classes = canvasEquiv.className.split(' ');
-            const layoutClass = classes.find(c => c.startsWith('layout-'));
-            const layout = layoutClass ? layoutClass.replace('layout-', '') : 'solo';
-            const isSwapped = classes.includes('swapped');
-
-            if (layout === 'side') {
-                if (state.cameraActive && state.screenShareActive) {
-                    const leftVideo = isSwapped ? screenShareVideo : cameraVideo;
-                    const rightVideo = isSwapped ? cameraVideo : screenShareVideo;
-                    drawVideoWithFit(leftVideo, 0, 0, width / 2, height);
-                    drawVideoWithFit(rightVideo, width / 2, 0, width / 2, height);
-                } else if (state.cameraActive) {
-                    drawVideoWithFit(cameraVideo, 0, 0, width, height);
-                } else if (state.screenShareActive) {
-                    drawVideoWithFit(screenShareVideo, 0, 0, width, height);
-                }
-            } else if (layout === 'stack') {
-                if (state.cameraActive && state.screenShareActive) {
-                    const topVideo = isSwapped ? screenShareVideo : cameraVideo;
-                    const bottomVideo = isSwapped ? cameraVideo : screenShareVideo;
-                    drawVideoWithFit(topVideo, 0, 0, width, height / 2);
-                    drawVideoWithFit(bottomVideo, 0, height / 2, width, height / 2);
-                } else if (state.cameraActive) {
-                    drawVideoWithFit(cameraVideo, 0, 0, width, height);
-                } else if (state.screenShareActive) {
-                    drawVideoWithFit(screenShareVideo, 0, 0, width, height);
-                }
-            } else if (layout === 'pip') {
-                if (state.cameraActive && state.screenShareActive) {
-                    const mainVideo = isSwapped ? cameraVideo : screenShareVideo;
-                    const pipVideo = isSwapped ? screenShareVideo : cameraVideo;
-
-                    // Draw main video
-                    drawVideoWithFit(mainVideo, 0, 0, width, height);
-
-                    // Draw PiP overlay
-                    const pipWidth = width * 0.25;
-                    const pipHeight = height * 0.25;
-                    const margin = width * 0.02;
-
-                    let pipX, pipY;
-                    if (state.pipPosition === 'bottom-right') {
-                        pipX = width - pipWidth - margin;
-                        pipY = height - pipHeight - margin;
-                    } else if (state.pipPosition === 'bottom-left') {
-                        pipX = margin;
-                        pipY = height - pipHeight - margin;
-                    } else if (state.pipPosition === 'top-left') {
-                        pipX = margin;
-                        pipY = margin;
-                    } else { // top-right
-                        pipX = width - pipWidth - margin;
-                        pipY = margin;
-                    }
-
-                    // Add shadow for PiP
-                    ctx.shadowColor = 'rgba(0, 0, 0, 0.3)';
-                    ctx.shadowBlur = 12;
-                    ctx.shadowOffsetX = 0;
-                    ctx.shadowOffsetY = 4;
-
-                    drawVideoWithFit(pipVideo, pipX, pipY, pipWidth, pipHeight);
-
-                    // Reset shadow
-                    ctx.shadowColor = 'transparent';
-                    ctx.shadowBlur = 0;
-                    ctx.shadowOffsetX = 0;
-                    ctx.shadowOffsetY = 0;
-                } else if (state.cameraActive) {
-                    drawVideoWithFit(cameraVideo, 0, 0, width, height);
-                } else if (state.screenShareActive) {
-                    drawVideoWithFit(screenShareVideo, 0, 0, width, height);
-                }
-            } else {
-                // Solo layout
-                if (state.cameraActive) {
-                    drawVideoWithFit(cameraVideo, 0, 0, width, height);
-                } else if (state.screenShareActive) {
-                    drawVideoWithFit(screenShareVideo, 0, 0, width, height);
-                }
-            }
-        }
-
-        // Recording loop
-        function recordingLoop() {
-            if (!state.recording) return;
-
-            const ctx = renderingCanvas.getContext('2d');
-            drawFrame(ctx);
-
-            animationFrameId = requestAnimationFrame(recordingLoop);
-        }
-
-        // Format time for display
-        function formatTime(seconds) {
-            const mins = Math.floor(seconds / 60);
-            const secs = seconds % 60;
-            return `${mins}:${secs.toString().padStart(2, '0')}`;
-        }
-
-        // Update recording timer display
-        function updateRecordingTime() {
-            if (!state.recording || !recordingStartTime) return;
-
-            const elapsed = Math.floor((Date.now() - recordingStartTime) / 1000);
-            recordingTimeDisplay.textContent = formatTime(elapsed);
-        }
-
-        // Toggle recording (placeholder)
-        async function toggleRecord() {
-            if (!state.recording) {
-                // Start recording
-                if (!state.cameraActive && !state.screenShareActive) {
-                    alert('Please enable at least one video feed before recording');
-                    return;
-                }
-
+            // --- Add Screen Share Source ---
+            btnAddScreen.addEventListener('click', async () => {
                 try {
-                    const ctx = setupCanvas();
-                    recordedChunks = [];
-
-                    // Mix audio streams
-                    const audioContext = new AudioContext();
-                    const destination = audioContext.createMediaStreamDestination();
-
-                    let hasAudio = false;
-
-                    // Add camera/microphone audio if available
-                    if (cameraStream && cameraStream.getAudioTracks().length > 0) {
-                        const cameraAudioSource = audioContext.createMediaStreamSource(
-                            new MediaStream(cameraStream.getAudioTracks())
-                        );
-                        cameraAudioSource.connect(destination);
-                        hasAudio = true;
-                        console.log('Camera audio tracks added:', cameraStream.getAudioTracks().length);
-                    }
-
-                    // Add screen share audio if available
-                    if (screenStream && screenStream.getAudioTracks().length > 0) {
-                        const screenAudioSource = audioContext.createMediaStreamSource(
-                            new MediaStream(screenStream.getAudioTracks())
-                        );
-                        screenAudioSource.connect(destination);
-                        hasAudio = true;
-                        console.log('Screen audio tracks added:', screenStream.getAudioTracks().length);
-                    }
-
-                    // Get canvas stream and combine with audio
-                    const canvasStream = renderingCanvas.captureStream(30); // 30 fps
-                    const videoTrack = canvasStream.getVideoTracks()[0];
-
-                    // Create combined stream
-                    const combinedStream = new MediaStream([videoTrack]);
-                    if (hasAudio && destination.stream.getAudioTracks().length > 0) {
-                        destination.stream.getAudioTracks().forEach(track => {
-                            combinedStream.addTrack(track);
-                        });
-                        console.log('Combined stream audio tracks:', combinedStream.getAudioTracks().length);
-                    } else {
-                        console.log('No audio tracks available for recording');
-                    }
-
-                    // Start media recorder
-                    const mimeType = MediaRecorder.isTypeSupported('video/webm;codecs=vp9,opus')
-                        ? 'video/webm;codecs=vp9,opus'
-                        : 'video/webm';
-
-                    mediaRecorder = new MediaRecorder(combinedStream, {
-                        mimeType: mimeType,
-                        videoBitsPerSecond: 5000000,
-                        audioBitsPerSecond: 128000
+                    const stream = await navigator.mediaDevices.getDisplayMedia({
+                        video: { width: 1920, height: 1080 },
+                        audio: true
                     });
 
-                    console.log('MediaRecorder created with mimeType:', mimeType);
+                    const sourceId = `screen-${Date.now()}`;
+                    const block = new MediaBlock({
+                        id: sourceId,
+                        name: `Screen ${state.sources.size + 1}`,
+                        type: 'screen',
+                        role: userRole,
+                        stream: stream,
+                        fitMode: 'contain'
+                    });
 
-                    mediaRecorder.ondataavailable = (event) => {
-                        if (event.data.size > 0) {
-                            recordedChunks.push(event.data);
-                        }
-                    };
+                    stream.getVideoTracks()[0].addEventListener('ended', () => {
+                        compositor.removeBlock(sourceId);
+                        peerRPC.unregisterLocalSource(sourceId);
+                        block.destroy();
+                        state.sources.delete(sourceId);
+                        renderBlocksTray();
+                    });
 
-                    mediaRecorder.onstop = () => {
-                        const blob = new Blob(recordedChunks, { type: 'video/webm' });
-                        const url = URL.createObjectURL(blob);
-
-                        // Auto download
-                        const a = document.createElement('a');
-                        a.href = url;
-                        a.download = `vyz-recording-${Date.now()}.webm`;
-                        a.click();
-
-                        URL.revokeObjectURL(url);
-                        recordedChunks = [];
-
-                        // Clean up audio context
-                        if (audioContext.state !== 'closed') {
-                            audioContext.close();
-                        }
-                    };
-
-                    mediaRecorder.start(1000); // Collect data every second
-
-                    // Start animation loop
-                    state.recording = true;
-                    recordingStartTime = Date.now();
-                    recordingLoop();
-
-                    // Update UI - add recording class to body to disable animations
-                    document.body.classList.add('recording');
-                    toggleRecordBtn.classList.add('active', 'recording');
-                    recordingIndicator.classList.add('active');
-                    recordingTimer = setInterval(updateRecordingTime, 1000);
-
-                    console.log('Recording started');
+                    compositor.addBlock(block);
+                    state.sources.set(sourceId, block);
+                    peerRPC.registerLocalSource(sourceId, stream, { name: block.name, type: 'screen' });
+                    renderBlocksTray();
                 } catch (err) {
-                    console.error('Error starting recording:', err);
-                    alert('Failed to start recording: ' + err.message);
+                    console.error('Screen share error:', err);
                 }
-            } else {
-                // Stop recording
-                if (mediaRecorder && mediaRecorder.state !== 'inactive') {
-                    mediaRecorder.stop();
+            });
+
+            // --- Add Mic Source ---
+            btnAddMic.addEventListener('click', async () => {
+                try {
+                    const stream = await navigator.mediaDevices.getUserMedia({
+                        audio: true,
+                        video: false
+                    });
+
+                    const sourceId = `mic-${Date.now()}`;
+                    const block = new MediaBlock({
+                        id: sourceId,
+                        name: `Microphone ${state.sources.size + 1}`,
+                        type: 'mic',
+                        role: userRole,
+                        stream: stream
+                    });
+
+                    // Optional Speech Recognition
+                    const SpeechRec = window.SpeechRecognition || window.webkitSpeechRecognition;
+                    if (SpeechRec && !state.speechRecognition) {
+                        try {
+                            const rec = new SpeechRec();
+                            rec.continuous = true;
+                            rec.interimResults = true;
+                            rec.onresult = (evt) => {
+                                let transcript = '';
+                                let isFinal = false;
+                                for (let i = evt.resultIndex; i < evt.results.length; ++i) {
+                                    transcript += evt.results[i][0].transcript;
+                                    if (evt.results[i].isFinal) isFinal = true;
+                                }
+                                dataBus.publish('pipeline:speech:transcript', {
+                                    sourceId: sourceId,
+                                    text: transcript.trim(),
+                                    isFinal: isFinal
+                                });
+                            };
+                            rec.start();
+                            state.speechRecognition = rec;
+                        } catch (e) {}
+                    }
+
+                    compositor.addBlock(block);
+                    state.sources.set(sourceId, block);
+                    peerRPC.registerLocalSource(sourceId, stream, { name: block.name, type: 'mic' });
+                    renderBlocksTray();
+                } catch (err) {
+                    console.error('Mic access error:', err);
+                    alert('Could not access microphone: ' + err.message);
                 }
+            });
 
-                if (animationFrameId) {
-                    cancelAnimationFrame(animationFrameId);
-                    animationFrameId = null;
+            // --- Add Simulated Remote Guest ---
+            btnAddSimulated.addEventListener('click', () => {
+                state.simulatedCount++;
+                const simId = `sim-remote-${state.simulatedCount}`;
+                const simName = `Guest ${state.simulatedCount} (Virtual)`;
+
+                const simCanvas = document.createElement('canvas');
+                simCanvas.width = 640;
+                simCanvas.height = 360;
+                const simCtx = simCanvas.getContext('2d');
+
+                let frame = 0;
+                const colors = ['#38BDF8', '#818CF8', '#F472B6', '#34D399', '#FBBF24'];
+                const color = colors[(state.simulatedCount - 1) % colors.length];
+
+                const drawSim = () => {
+                    frame++;
+                    simCtx.fillStyle = '#1E293B';
+                    simCtx.fillRect(0, 0, 640, 360);
+
+                    // Grid
+                    simCtx.strokeStyle = 'rgba(255,255,255,0.06)';
+                    simCtx.lineWidth = 1;
+                    for (let x = 0; x < 640; x += 40) {
+                        simCtx.beginPath();
+                        simCtx.moveTo(x, 0);
+                        simCtx.lineTo(x, 360);
+                        simCtx.stroke();
+                    }
+
+                    // Pulsing Orb
+                    const orbRadius = 45 + Math.sin(frame * 0.08) * 12;
+                    simCtx.fillStyle = color;
+                    simCtx.beginPath();
+                    simCtx.arc(320, 180, orbRadius, 0, Math.PI * 2);
+                    simCtx.fill();
+
+                    simCtx.fillStyle = '#FFFFFF';
+                    simCtx.font = '600 22px sans-serif';
+                    simCtx.textAlign = 'center';
+                    simCtx.fillText(simName, 320, 180 + 80);
+
+                    requestAnimationFrame(drawSim);
+                };
+                drawSim();
+
+                const simStream = simCanvas.captureStream(30);
+
+                const simBlock = new MediaBlock({
+                    id: simId,
+                    name: simName,
+                    type: 'virtual',
+                    role: 'participant',
+                    isRemote: true,
+                    stream: simStream,
+                    permissionStatus: 'granted'
+                });
+
+                // Simulated audio level pulses
+                setInterval(() => {
+                    if (simBlock.isActive && simBlock.isAudioActive) {
+                        const isSpeaking = Math.random() > 0.6;
+                        dataBus.publish('pipeline:audio:level', {
+                            sourceId: simId,
+                            participantId: simId,
+                            level: isSpeaking ? 0.75 : 0,
+                            isSpeaking: isSpeaking
+                        });
+
+                        if (isSpeaking && Math.random() > 0.75) {
+                            const phrases = [
+                                "All sources are streaming clearly!",
+                                "Great presentation layout, host.",
+                                "WebRTC broadcast is live and stable.",
+                                "MediaPipe filters look fantastic."
+                            ];
+                            dataBus.publish('pipeline:speech:transcript', {
+                                sourceId: simId,
+                                text: phrases[Math.floor(Math.random() * phrases.length)],
+                                isFinal: true
+                            });
+                        }
+                    }
+                }, 2200);
+
+                compositor.addBlock(simBlock);
+                state.sources.set(simId, simBlock);
+                renderBlocksTray();
+            });
+
+            // --- Broadcast Studio Merged Stream ---
+            btnBroadcast.addEventListener('click', () => {
+                if (!state.broadcasting) {
+                    if (compositor.getActiveBlocks().length === 0) {
+                        alert('Add at least one active media source before broadcasting.');
+                        return;
+                    }
+
+                    const mergedStream = compositor.getMergedStream(60);
+                    peerRPC.broadcastMergedStream(mergedStream);
+
+                    state.broadcasting = true;
+                    btnBroadcast.classList.add('btn-broadcasting');
+                    broadcastBtnText.textContent = 'Stop Broadcast';
+                    broadcastBadge.classList.add('on-air');
+                    broadcastStatusText.textContent = 'ON AIR';
+                    broadcastOverlayBadge.classList.add('active');
+                } else {
+                    peerRPC.stopMergedBroadcast();
+                    state.broadcasting = false;
+                    btnBroadcast.classList.remove('btn-broadcasting');
+                    broadcastBtnText.textContent = 'Go Live';
+                    broadcastBadge.classList.remove('on-air');
+                    broadcastStatusText.textContent = 'OFF AIR';
+                    broadcastOverlayBadge.classList.remove('active');
                 }
+            });
 
-                if (recordingTimer) {
-                    clearInterval(recordingTimer);
-                    recordingTimer = null;
+            // --- Studio Recording Engine ---
+            btnRecord.addEventListener('click', () => {
+                if (!state.recording) {
+                    if (compositor.getActiveBlocks().length === 0) {
+                        alert('Please add or activate at least one media source before recording.');
+                        return;
+                    }
+
+                    try {
+                        state.recordedChunks = [];
+                        const mergedStream = compositor.getMergedStream(60);
+
+                        const mimeType = MediaRecorder.isTypeSupported('video/webm;codecs=vp9,opus')
+                            ? 'video/webm;codecs=vp9,opus'
+                            : 'video/webm';
+
+                        const recorder = new MediaRecorder(mergedStream, {
+                            mimeType: mimeType,
+                            videoBitsPerSecond: 8000000
+                        });
+
+                        recorder.ondataavailable = (e) => {
+                            if (e.data && e.data.size > 0) {
+                                state.recordedChunks.push(e.data);
+                            }
+                        };
+
+                        recorder.onstop = () => {
+                            const blob = new Blob(state.recordedChunks, { type: 'video/webm' });
+                            const url = URL.createObjectURL(blob);
+                            const a = document.createElement('a');
+                            a.href = url;
+                            a.download = `vyz-studio-recording-${Date.now()}.webm`;
+                            a.click();
+                            URL.revokeObjectURL(url);
+                            state.recordedChunks = [];
+                        };
+
+                        recorder.start(1000);
+                        state.mediaRecorder = recorder;
+                        state.recording = true;
+                        state.recordingStartTime = Date.now();
+
+                        btnRecord.classList.add('btn-recording');
+                        recordBtnText.textContent = 'Stop Recording';
+                        recordingBadge.classList.add('active');
+
+                        state.recordingTimerId = setInterval(() => {
+                            const elapsed = Math.floor((Date.now() - state.recordingStartTime) / 1000);
+                            const mins = Math.floor(elapsed / 60);
+                            const secs = (elapsed % 60).toString().padStart(2, '0');
+                            recordingTimerText.textContent = `${mins}:${secs}`;
+                        }, 1000);
+
+                    } catch (err) {
+                        console.error('Failed to start recording:', err);
+                        alert('Recording error: ' + err.message);
+                    }
+                } else {
+                    if (state.mediaRecorder && state.mediaRecorder.state !== 'inactive') {
+                        state.mediaRecorder.stop();
+                    }
+                    if (state.recordingTimerId) {
+                        clearInterval(state.recordingTimerId);
+                        state.recordingTimerId = null;
+                    }
+                    state.recording = false;
+                    btnRecord.classList.remove('btn-recording');
+                    recordBtnText.textContent = 'Record Studio';
+                    recordingBadge.classList.remove('active');
+                    recordingTimerText.textContent = '0:00';
                 }
+            });
 
-                state.recording = false;
-                recordingStartTime = null;
+            // --- Pipeline Inspector Dialog Logic ---
+            function openPipelineDialog(block) {
+                inspectedBlock = block;
+                pipelineDialogTitle.textContent = `${block.name} • Filter Pipeline`;
 
-                // Update UI - remove recording class to re-enable animations
-                document.body.classList.remove('recording');
-                toggleRecordBtn.classList.remove('active', 'recording');
-                recordingIndicator.classList.remove('active');
-                recordingTimeDisplay.textContent = '0:00';
+                filterPresetSelect.value = block.pipeline.filters.preset || 'none';
+                customFilterSelect.value = block.pipeline.filters.customFilterId || '';
+                subtitlesToggle.checked = block.pipeline.subtitles.enabled;
+                speakerGlowToggle.checked = block.pipeline.ar.activeSpeakerGlow;
+                manualSubtitleInput.value = block.pipeline.subtitles.currentText || '';
 
-                console.log('Recording stopped');
+                pipelineDialog.showModal();
             }
-        }
 
-        // Event listeners
-        toggleCameraBtn.addEventListener('click', toggleCamera);
-        toggleMicBtn.addEventListener('click', toggleMic);
-        toggleScreenShareBtn.addEventListener('click', toggleScreenShare);
+            filterPresetSelect.addEventListener('change', (e) => {
+                if (!inspectedBlock) return;
+                inspectedBlock.pipeline.setFilterPreset(e.target.value);
+            });
 
-        aspectRatioBtn.addEventListener('click', () => {
-            const currentRatios = aspectRatios[state.orientation];
-            state.aspectRatioIndex = (state.aspectRatioIndex + 1) % currentRatios.length;
+            customFilterSelect.addEventListener('change', (e) => {
+                if (!inspectedBlock) return;
+                inspectedBlock.pipeline.setCustomFilter(e.target.value || null);
+            });
+
+            btnLoadFilterUrl.addEventListener('click', async () => {
+                const url = customFilterUrlInput.value.trim();
+                if (!url) return;
+                try {
+                    const filter = await MediaPipeline.loadFilterFromUrl(url);
+                    updateCustomFilterDropdowns();
+                    customFilterSelect.value = filter.id;
+                    if (inspectedBlock) {
+                        inspectedBlock.pipeline.setCustomFilter(filter.id);
+                    }
+                    alert(`Loaded filter plugin: "${filter.name}"`);
+                } catch (err) {
+                    alert('Failed to load filter from URL: ' + err.message);
+                }
+            });
+
+            customFilterFileInput.addEventListener('change', async (e) => {
+                const file = e.target.files[0];
+                if (!file) return;
+                try {
+                    const filter = await MediaPipeline.loadFilterFromFile(file);
+                    updateCustomFilterDropdowns();
+                    customFilterSelect.value = filter.id;
+                    if (inspectedBlock) {
+                        inspectedBlock.pipeline.setCustomFilter(filter.id);
+                    }
+                    alert(`Loaded filter plugin: "${filter.name}"`);
+                } catch (err) {
+                    alert('Failed to load filter from file: ' + err.message);
+                }
+            });
+
+            subtitlesToggle.addEventListener('change', (e) => {
+                if (!inspectedBlock) return;
+                inspectedBlock.pipeline.subtitles.enabled = e.target.checked;
+            });
+
+            manualSubtitleInput.addEventListener('input', (e) => {
+                if (!inspectedBlock) return;
+                dataBus.publish('pipeline:speech:transcript', {
+                    sourceId: inspectedBlock.id,
+                    text: e.target.value,
+                    isFinal: true
+                });
+            });
+
+            speakerGlowToggle.addEventListener('change', (e) => {
+                if (!inspectedBlock) return;
+                inspectedBlock.pipeline.ar.activeSpeakerGlow = e.target.checked;
+            });
+
+            document.querySelectorAll('.emoji-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    if (inspectedBlock) {
+                        inspectedBlock.pipeline.triggerReaction(btn.dataset.emoji);
+                    }
+                });
+            });
+
+            btnClosePipelineDialog.addEventListener('click', () => {
+                pipelineDialog.close();
+                inspectedBlock = null;
+            });
+
+            // --- Master Output FX Dialog ---
+            btnMasterFx.addEventListener('click', () => {
+                masterFilterPresetSelect.value = compositor.masterPipeline.filters.preset || 'none';
+                masterCustomFilterSelect.value = compositor.masterPipeline.filters.customFilterId || '';
+                masterFxDialog.showModal();
+            });
+
+            masterFilterPresetSelect.addEventListener('change', (e) => {
+                compositor.masterPipeline.setFilterPreset(e.target.value);
+            });
+
+            masterCustomFilterSelect.addEventListener('change', (e) => {
+                compositor.masterPipeline.setCustomFilter(e.target.value || null);
+            });
+
+            btnCloseMasterFxDialog.addEventListener('click', () => {
+                masterFxDialog.close();
+            });
+
+            // --- WebRTC Server Config Dialog ---
+            btnOpenWebrtcConfig.addEventListener('click', () => {
+                webrtcServersTextarea.value = JSON.stringify(peerRPC.iceServers, null, 2);
+                webrtcDialog.showModal();
+            });
+
+            btnCloseWebrtcDialog.addEventListener('click', () => {
+                webrtcDialog.close();
+            });
+
+            btnSaveWebrtc.addEventListener('click', () => {
+                try {
+                    const parsed = JSON.parse(webrtcServersTextarea.value.trim());
+                    if (!Array.isArray(parsed)) throw new Error('Root must be an array of RTCIceServer objects');
+                    peerRPC.setCustomIceServers(parsed);
+                    roomStatusBadge.textContent = `● Room: ${roomId} • ${userRole} • ICE: Custom (${parsed.length})`;
+                    webrtcDialog.close();
+                    alert('Custom WebRTC ICE servers saved!');
+                } catch (err) {
+                    alert('Invalid JSON: ' + err.message);
+                }
+            });
+
+            btnResetWebrtc.addEventListener('click', () => {
+                peerRPC.setCustomIceServers(null);
+                webrtcServersTextarea.value = JSON.stringify(peerRPC.iceServers, null, 2);
+                roomStatusBadge.textContent = `● Room: ${roomId} • ${userRole} • STUN: Public`;
+                alert('Reset to Google & Cloudflare Public STUN servers');
+            });
+
+            // --- Hotkeys Dialog ---
+            btnOpenHotkeys.addEventListener('click', () => {
+                hotkeysDialog.showModal();
+            });
+
+            btnCloseHotkeysDialog.addEventListener('click', () => {
+                hotkeysDialog.close();
+            });
+
+            // --- Invite Dialog ---
+            btnOpenInvite.addEventListener('click', () => {
+                inviteDialog.showModal();
+            });
+
+            btnCloseInviteDialog.addEventListener('click', () => {
+                inviteDialog.close();
+            });
+
+            btnCopyInvite.addEventListener('click', () => {
+                navigator.clipboard.writeText(inviteLinkInput.value).then(() => {
+                    btnCopyInvite.innerHTML = '<span class="material-symbols-outlined">check</span><span>Copied!</span>';
+                    setTimeout(() => {
+                        btnCopyInvite.innerHTML = '<span class="material-symbols-outlined">content_copy</span><span>Copy Invite Link</span>';
+                    }, 2000);
+                });
+            });
+
+            // --- Global Keyboard Hotkeys Listener ---
+            window.addEventListener('keydown', (e) => {
+                // Ignore hotkeys when typing in text inputs or textareas
+                const activeTag = document.activeElement ? document.activeElement.tagName.toLowerCase() : '';
+                if (activeTag === 'input' || activeTag === 'textarea' || activeTag === 'select') return;
+
+                const key = e.key.toLowerCase();
+
+                // Space or 'R' -> Toggle Recording
+                if (e.code === 'Space' || key === 'r') {
+                    e.preventDefault();
+                    btnRecord.click();
+                }
+                // 'B' -> Toggle Broadcast
+                else if (key === 'b') {
+                    e.preventDefault();
+                    btnBroadcast.click();
+                }
+                // 'M' -> Toggle first available audio source
+                else if (key === 'm') {
+                    e.preventDefault();
+                    const audioBlock = compositor.blocks.find(b => b.hasAudio && !b.isRemote);
+                    if (audioBlock) {
+                        audioBlock.toggleAudio();
+                        compositor.updateAudioMixer();
+                        renderBlocksTray();
+                    }
+                }
+                // 'V' -> Toggle first available video source
+                else if (key === 'v') {
+                    e.preventDefault();
+                    const videoBlock = compositor.blocks.find(b => b.hasVideo && !b.isRemote);
+                    if (videoBlock) {
+                        videoBlock.toggleVideo();
+                        renderBlocksTray();
+                    }
+                }
+                // 'A' -> Cycle Aspect Ratio
+                else if (key === 'a') {
+                    e.preventDefault();
+                    btnAspectRatio.click();
+                }
+                // '1' to '5' -> Select Layouts
+                else if (['1', '2', '3', '4', '5'].includes(key)) {
+                    e.preventDefault();
+                    const index = parseInt(key) - 1;
+                    if (index < state.layouts.length) {
+                        state.layoutIndex = index;
+                        const newLayout = state.layouts[state.layoutIndex];
+                        compositor.setLayout(newLayout);
+                        layoutText.textContent = newLayout.charAt(0).toUpperCase() + newLayout.slice(1);
+                    }
+                }
+                // 'F' -> Fullscreen Canvas
+                else if (key === 'f') {
+                    e.preventDefault();
+                    if (!document.fullscreenElement) {
+                        canvasContainer.requestFullscreen().catch(() => {});
+                    } else {
+                        document.exitFullscreen().catch(() => {});
+                    }
+                }
+                // '?' -> Hotkeys Cheat Sheet
+                else if (e.key === '?') {
+                    e.preventDefault();
+                    hotkeysDialog.showModal();
+                }
+            });
+
+            // Start Compositor Render Loop
+            compositor.start();
             updateAspectRatio();
+            renderBlocksTray();
         });
-
-        orientationBtn.addEventListener('click', () => {
-            state.orientation = state.orientation === 'landscape' ? 'portrait' : 'landscape';
-            state.aspectRatioIndex = Math.min(state.aspectRatioIndex, aspectRatios[state.orientation].length - 1);
-            updateOrientation();
-            updateAspectRatio();
-        });
-
-        changeLayoutBtn.addEventListener('click', changeLayout);
-        swapFeedsBtn.addEventListener('click', swapFeeds);
-        changePipPositionBtn.addEventListener('click', changePipPosition);
-        toggleRecordBtn.addEventListener('click', toggleRecord);
-
-        // Double-click to cycle object-fit
-        cameraVideo.addEventListener('dblclick', () => cycleObjectFit(cameraVideo));
-        screenShareVideo.addEventListener('dblclick', () => cycleObjectFit(screenShareVideo));
-
-        // Initialize
-        updateOrientation();
-        updateAspectRatio();
-        updateLayout();
     </script>
 </body>
 
