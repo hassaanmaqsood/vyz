@@ -259,7 +259,11 @@ wss.on('connection', (ws) => {
       if (roomClients) {
         roomClients.forEach((client) => {
           if (client !== ws && client.readyState === 1 /* OPEN */) {
-            client.send(JSON.stringify(msg));
+            try {
+              client.send(JSON.stringify(msg));
+            } catch (sendErr) {
+              console.warn('[WebSocket] Error forwarding signal to peer:', sendErr.message);
+            }
           }
         });
       }
@@ -281,7 +285,9 @@ wss.on('connection', (ws) => {
         });
         rooms.get(currentRoom).forEach((client) => {
           if (client.readyState === 1) {
-            client.send(leaveMsg);
+            try {
+              client.send(leaveMsg);
+            } catch (e) {}
           }
         });
       }
@@ -291,6 +297,19 @@ wss.on('connection', (ws) => {
       }
     }
   });
+
+  ws.on('error', (err) => {
+    console.warn(`[WebSocket] Client socket error (${clientPeerId || 'unannounced'}):`, err.message);
+  });
+});
+
+// Process safety error handlers
+process.on('unhandledRejection', (reason, promise) => {
+  console.warn('[Process] Unhandled Rejection at:', promise, 'reason:', reason);
+});
+
+process.on('uncaughtException', (err) => {
+  console.error('[Process] Uncaught Exception:', err);
 });
 
 // Start server

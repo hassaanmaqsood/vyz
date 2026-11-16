@@ -60,6 +60,10 @@ class PeerRPC {
         this.onBroadcastStatusReceived = null; // ({ peerId, active }) => void
 
         this.connectedPeers = new Set();
+        this.reconnectTimer = null;
+        this.reconnectAttempts = 0;
+        this.maxReconnectAttempts = 10;
+        this.isDestroyed = false;
 
         this._fetchIceServers();
         this._initSignaling();
@@ -101,13 +105,21 @@ class PeerRPC {
             if (typeof window !== 'undefined' && window.localStorage) {
                 localStorage.removeItem('vyz_custom_ice_servers');
             }
-        } else {
-            this.iceServers = serversArray;
-            if (typeof window !== 'undefined' && window.localStorage) {
-                localStorage.setItem('vyz_custom_ice_servers', JSON.stringify(serversArray));
-            }
+            return true;
+        }
+
+        // Validate each ICE server item has urls property
+        const isValid = serversArray.every(item => item && (typeof item.urls === 'string' || Array.isArray(item.urls)));
+        if (!isValid) {
+            throw new Error('Each ICE server configuration must contain a "urls" string or array of strings');
+        }
+
+        this.iceServers = serversArray;
+        if (typeof window !== 'undefined' && window.localStorage) {
+            localStorage.setItem('vyz_custom_ice_servers', JSON.stringify(serversArray));
         }
         console.log('[PeerRPC] Active ICE servers updated:', this.iceServers);
+        return true;
     }
 
     setCustomSignalingUrl(url) {
@@ -119,6 +131,11 @@ class PeerRPC {
                 localStorage.removeItem('vyz_signaling_url');
             }
         }
+        if (this.reconnectTimer) {
+            clearTimeout(this.reconnectTimer);
+            this.reconnectTimer = null;
+        }
+        this.reconnectAttempts = 0;
         // Re-initialize signaling with new endpoint
         if (this.ws) {
             this.ws.close();
@@ -177,12 +194,19 @@ class PeerRPC {
     }
 
     _connectWebSocket(wsUrl) {
+        if (this.isDestroyed) return;
+
         try {
             console.log(`[PeerRPC] Connecting to WebSocket signaling at: ${wsUrl}`);
             this.ws = new WebSocket(wsUrl);
 
             this.ws.onopen = () => {
                 console.log('[PeerRPC] WebSocket signaling connected');
+                this.reconnectAttempts = 0;
+                if (this.reconnectTimer) {
+                    clearTimeout(this.reconnectTimer);
+                    this.reconnectTimer = null;
+                }
                 if (this.onConnectionStatus) this.onConnectionStatus('connected');
                 this._announcePresence();
             };
@@ -199,15 +223,37 @@ class PeerRPC {
             this.ws.onerror = () => {
                 console.warn('[PeerRPC] WebSocket error, fallback to BroadcastChannel');
                 this._initBroadcastFallback();
+                this._scheduleReconnect(wsUrl);
             };
 
             this.ws.onclose = () => {
                 console.log('[PeerRPC] WebSocket closed, fallback to BroadcastChannel');
                 this._initBroadcastFallback();
+                this._scheduleReconnect(wsUrl);
             };
         } catch (e) {
             this._initBroadcastFallback();
+            this._scheduleReconnect(wsUrl);
         }
+    }
+
+    _scheduleReconnect(wsUrl) {
+        if (this.isDestroyed || this.reconnectTimer) return;
+        if (this.reconnectAttempts >= this.maxReconnectAttempts) {
+            console.log('[PeerRPC] Max signaling reconnect attempts reached. Keeping BroadcastChannel active.');
+            return;
+        }
+
+        const delay = Math.min(1000 * Math.pow(1.5, this.reconnectAttempts), 15000);
+        this.reconnectAttempts++;
+        console.log(`[PeerRPC] Scheduling signaling reconnect in ${Math.round(delay)}ms (attempt ${this.reconnectAttempts})`);
+
+        this.reconnectTimer = setTimeout(() => {
+            this.reconnectTimer = null;
+            if (!this.isDestroyed && (!this.ws || this.ws.readyState === WebSocket.CLOSED)) {
+                this._connectWebSocket(wsUrl);
+            }
+        }, delay);
     }
 
     _initBroadcastFallback() {
@@ -635,6 +681,16 @@ class PeerRPC {
 
     stopMergedBroadcast() {
         this.isBroadcastingMerged = false;
+        if (this.mergedBroadcastStream) {
+            const trackIds = this.mergedBroadcastStream.getTracks().map(t => t.id);
+            this.rtcPeers.forEach(pc => {
+                pc.getSenders().forEach(sender => {
+                    if (sender.track && trackIds.includes(sender.track.id)) {
+                        try { pc.removeTrack(sender); } catch (e) {}
+                    }
+                });
+            });
+        }
         this.mergedBroadcastStream = null;
 
         this._sendSignal({
@@ -652,10 +708,16 @@ class PeerRPC {
             byHost: this.role === 'host'
         };
 
+        let sent = false;
         const dc = this.dataChannels.get(targetPeerId);
         if (dc && dc.readyState === 'open') {
-            dc.send(JSON.stringify(payload));
-        } else {
+            try {
+                dc.send(JSON.stringify(payload));
+                sent = true;
+            } catch (e) {}
+        }
+
+        if (!sent) {
             this._sendSignal({
                 ...payload,
                 targetPeerId: targetPeerId
@@ -664,16 +726,27 @@ class PeerRPC {
     }
 
     destroy() {
-        this._sendSignal({ type: 'PEER_LEFT' });
+        this.isDestroyed = true;
+        if (this.reconnectTimer) {
+            clearTimeout(this.reconnectTimer);
+            this.reconnectTimer = null;
+        }
+
+        try {
+            this._sendSignal({ type: 'PEER_LEFT' });
+        } catch (e) {}
+
         if (this.ws) {
-            this.ws.close();
+            try { this.ws.close(); } catch (e) {}
             this.ws = null;
         }
         if (this.broadcastChannel) {
-            this.broadcastChannel.close();
+            try { this.broadcastChannel.close(); } catch (e) {}
             this.broadcastChannel = null;
         }
-        this.rtcPeers.forEach(pc => pc.close());
+        this.rtcPeers.forEach(pc => {
+            try { pc.close(); } catch (e) {}
+        });
         this.rtcPeers.clear();
         this.dataChannels.clear();
     }

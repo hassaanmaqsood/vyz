@@ -205,13 +205,18 @@ class DynamicCompositor {
     }
 
     /**
-     * Web Audio Master Mixing Engine
+     * Web Audio Master Mixing Engine (Synchronized with Shared Studio AudioContext)
      */
     initAudioMixer() {
-        if (!this.audioCtx) {
-            const AudioCtx = window.AudioContext || window.webkitAudioContext;
-            if (AudioCtx) {
-                this.audioCtx = new AudioCtx();
+        if (!this.audioCtx || this.audioCtx.state === 'closed') {
+            if (typeof getSharedStudioAudioContext === 'function') {
+                this.audioCtx = getSharedStudioAudioContext();
+            } else {
+                const AudioCtx = window.AudioContext || window.webkitAudioContext;
+                if (AudioCtx) this.audioCtx = new AudioCtx();
+            }
+
+            if (this.audioCtx && (!this.audioDestination || this.audioDestination.context !== this.audioCtx)) {
                 this.audioDestination = this.audioCtx.createMediaStreamDestination();
             }
         }
@@ -246,7 +251,9 @@ class DynamicCompositor {
                         console.warn(`[DynamicCompositor] Error connecting audio for block ${block.id}:`, e);
                     }
                 } else {
-                    entry.gainNode.gain.setValueAtTime(shouldBeHeard ? 1.0 : 0.0, this.audioCtx.currentTime);
+                    try {
+                        entry.gainNode.gain.setValueAtTime(shouldBeHeard ? 1.0 : 0.0, this.audioCtx.currentTime);
+                    } catch (e) {}
                 }
             } else if (entry) {
                 this.disconnectBlockAudio(block.id);

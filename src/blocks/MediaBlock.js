@@ -5,6 +5,26 @@
  * fit-mode management, Web Audio gain & level analysis, and attached pipeline.
  */
 
+// Shared AudioContext manager across all MediaBlocks to avoid browser max context limit (max 6 in Chromium)
+let _sharedStudioAudioContext = null;
+
+function getSharedStudioAudioContext() {
+    if (typeof window === 'undefined') return null;
+    const AudioCtxClass = window.AudioContext || window.webkitAudioContext;
+    if (!AudioCtxClass) return null;
+
+    if (!_sharedStudioAudioContext || _sharedStudioAudioContext.state === 'closed') {
+        _sharedStudioAudioContext = new AudioCtxClass();
+    }
+    return _sharedStudioAudioContext;
+}
+
+function resumeSharedStudioAudioContext() {
+    if (_sharedStudioAudioContext && _sharedStudioAudioContext.state === 'suspended') {
+        _sharedStudioAudioContext.resume().catch(() => {});
+    }
+}
+
 class MediaBlock {
     constructor(config = {}) {
         this.id = config.id || `source-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`;
@@ -47,7 +67,7 @@ class MediaBlock {
             audioSourceId: config.audioSourceId || this.id
         });
 
-        // Web Audio analysis and mixing nodes
+        // Web Audio analysis and mixing nodes (using shared AudioContext)
         this.audioContext = null;
         this.audioAnalyser = null;
         this.audioDataArray = null;
@@ -56,6 +76,9 @@ class MediaBlock {
         this.audioAnalysisLoopId = null;
         this.currentAudioLevel = 0;
         this.isSpeaking = false;
+
+        // Track ended listener cleanup
+        this._trackEndedHandlers = [];
 
         if (config.stream) {
             this.attachStream(config.stream);
@@ -75,6 +98,9 @@ class MediaBlock {
      * Attach a MediaStream to this block and detect audio/video tracks
      */
     attachStream(stream) {
+        // Clean up previous stream listeners if re-attaching
+        this._removeTrackListeners();
+
         this.stream = stream;
 
         const vTracks = stream.getVideoTracks();
@@ -82,6 +108,15 @@ class MediaBlock {
 
         this.hasVideo = vTracks.length > 0;
         this.hasAudio = aTracks.length > 0;
+
+        // Listen for hardware unplug or native "Stop sharing" events
+        stream.getTracks().forEach(track => {
+            const onEnded = () => {
+                this.handleTrackEnded(track);
+            };
+            track.addEventListener('ended', onEnded);
+            this._trackEndedHandlers.push({ track, onEnded });
+        });
 
         // Apply initial track enablement states
         if (this.hasVideo) {
@@ -93,6 +128,41 @@ class MediaBlock {
         if (this.hasAudio) {
             aTracks.forEach(t => { t.enabled = this.isAudioActive; });
             this.startAudioEngine();
+        }
+    }
+
+    _removeTrackListeners() {
+        this._trackEndedHandlers.forEach(({ track, onEnded }) => {
+            try {
+                track.removeEventListener('ended', onEnded);
+            } catch (e) {}
+        });
+        this._trackEndedHandlers = [];
+    }
+
+    handleTrackEnded(track) {
+        console.log(`[MediaBlock ${this.id}] Track ended: ${track.kind} (${track.label || 'unnamed'})`);
+        if (track.kind === 'video') {
+            const remaining = this.stream ? this.stream.getVideoTracks().filter(t => t.readyState === 'live') : [];
+            this.hasVideo = remaining.length > 0;
+            if (!this.hasVideo) {
+                this.isVideoActive = false;
+            }
+        } else if (track.kind === 'audio') {
+            const remaining = this.stream ? this.stream.getAudioTracks().filter(t => t.readyState === 'live') : [];
+            this.hasAudio = remaining.length > 0;
+            if (!this.hasAudio) {
+                this.isAudioActive = false;
+            }
+        }
+
+        if (window.globalDataBus) {
+            window.globalDataBus.publish('source:track:ended', {
+                sourceId: this.id,
+                kind: track.kind,
+                hasVideo: this.hasVideo,
+                hasAudio: this.hasAudio
+            });
         }
     }
 
@@ -137,11 +207,13 @@ class MediaBlock {
             });
         }
 
-        if (this.gainNode) {
-            this.gainNode.gain.setValueAtTime(
-                this.isAudioActive ? 1.0 : 0.0,
-                this.audioContext ? this.audioContext.currentTime : 0
-            );
+        if (this.gainNode && this.audioContext) {
+            try {
+                this.gainNode.gain.setValueAtTime(
+                    this.isAudioActive ? 1.0 : 0.0,
+                    this.audioContext.currentTime
+                );
+            } catch (e) {}
         }
 
         if (!this.isAudioActive) {
@@ -201,17 +273,18 @@ class MediaBlock {
     }
 
     /**
-     * Start Web Audio engine: volume analyser + GainNode
+     * Start Web Audio engine: volume analyser + GainNode using shared AudioContext
      */
     startAudioEngine() {
         if (!this.stream || this.stream.getAudioTracks().length === 0) return;
         if (this.audioAnalysisLoopId) return;
 
         try {
-            const AudioCtxClass = window.AudioContext || window.webkitAudioContext;
-            if (!AudioCtxClass) return;
+            this.audioContext = getSharedStudioAudioContext();
+            if (!this.audioContext) return;
 
-            this.audioContext = new AudioCtxClass();
+            resumeSharedStudioAudioContext();
+
             this.audioAnalyser = this.audioContext.createAnalyser();
             this.audioAnalyser.fftSize = 256;
             this.audioAnalyser.smoothingTimeConstant = 0.4;
@@ -268,13 +341,23 @@ class MediaBlock {
             cancelAnimationFrame(this.audioAnalysisLoopId);
             this.audioAnalysisLoopId = null;
         }
-        if (this.audioContext && this.audioContext.state !== 'closed') {
-            this.audioContext.close().catch(() => {});
-        }
-        this.audioContext = null;
+
+        try {
+            if (this.audioSourceNode) {
+                this.audioSourceNode.disconnect();
+            }
+            if (this.gainNode) {
+                this.gainNode.disconnect();
+            }
+            if (this.audioAnalyser) {
+                this.audioAnalyser.disconnect();
+            }
+        } catch (e) {}
+
         this.audioAnalyser = null;
         this.gainNode = null;
         this.audioSourceNode = null;
+        this.audioContext = null;
     }
 
     grantPermission() {
@@ -287,12 +370,19 @@ class MediaBlock {
     }
 
     destroy() {
+        this._removeTrackListeners();
         this.stopAudioEngine();
         if (this.stream) {
-            this.stream.getTracks().forEach(track => track.stop());
+            // Stop tracks only if this was a local user stream (camera, screen, mic)
+            if (!this.isRemote) {
+                this.stream.getTracks().forEach(track => {
+                    try { track.stop(); } catch (e) {}
+                });
+            }
         }
         if (this.videoElement) {
             this.videoElement.srcObject = null;
+            this.videoElement.pause();
         }
         if (this.pipeline) {
             this.pipeline.destroy();
@@ -302,8 +392,10 @@ class MediaBlock {
 
 if (typeof window !== 'undefined') {
     window.MediaBlock = MediaBlock;
+    window.getSharedStudioAudioContext = getSharedStudioAudioContext;
+    window.resumeSharedStudioAudioContext = resumeSharedStudioAudioContext;
 }
 
 if (typeof module !== 'undefined' && module.exports) {
-    module.exports = { MediaBlock };
+    module.exports = { MediaBlock, getSharedStudioAudioContext, resumeSharedStudioAudioContext };
 }

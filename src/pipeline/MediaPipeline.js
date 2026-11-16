@@ -23,6 +23,8 @@ class MediaPipeline {
             saturation: 100
         };
 
+        this.filterErrorCount = 0;
+
         this.subtitles = {
             enabled: true,
             referencedSourceId: options.audioSourceId || null,
@@ -261,6 +263,22 @@ class MediaPipeline {
         return { canvas: this.scratchCanvas, ctx: this.scratchCtx };
     }
 
+    _drawRoundRect(ctx, x, y, w, h, r = 10) {
+        if (typeof ctx.roundRect === 'function') {
+            ctx.roundRect(x, y, w, h, r);
+        } else {
+            if (w < 2 * r) r = w / 2;
+            if (h < 2 * r) r = h / 2;
+            ctx.beginPath();
+            ctx.moveTo(x + r, y);
+            ctx.arcTo(x + w, y, x + w, y + h, r);
+            ctx.arcTo(x + w, y + h, x, y + h, r);
+            ctx.arcTo(x, y + h, x, y, r);
+            ctx.arcTo(x, y, x + w, y, r);
+            ctx.closePath();
+        }
+    }
+
     /**
      * Render the processed pipeline onto the target canvas context
      */
@@ -270,9 +288,9 @@ class MediaPipeline {
 
         ctx.save();
 
-        // 1. Clip to block boundary with rounded corners
+        // 1. Clip to block boundary with rounded corners (cross-browser compatible)
         ctx.beginPath();
-        ctx.roundRect(x, y, w, h, cornerRadius);
+        this._drawRoundRect(ctx, x, y, w, h, cornerRadius);
         ctx.clip();
 
         // 2. Render Video OR Audio Avatar
@@ -317,7 +335,7 @@ class MediaPipeline {
             ctx.shadowColor = '#00F5D4';
             ctx.shadowBlur = 18;
             ctx.beginPath();
-            ctx.roundRect(x, y, w, h, cornerRadius);
+            this._drawRoundRect(ctx, x, y, w, h, cornerRadius);
             ctx.stroke();
             ctx.restore();
         }
@@ -338,8 +356,14 @@ class MediaPipeline {
                     timestamp: performance.now(),
                     params: this.filters
                 });
+                this.filterErrorCount = 0;
             } catch (err) {
-                console.error('[MediaPipeline] Master custom filter error:', err);
+                this.filterErrorCount = (this.filterErrorCount || 0) + 1;
+                if (this.filterErrorCount >= 3) {
+                    console.warn(`[MediaPipeline] Circuit breaker: disabling master custom filter "${this.filters.customFilterId}" after 3 errors:`, err.message);
+                    this.filters.customFilterId = null;
+                    this.filters.enabled = this.filters.preset !== 'none';
+                }
             }
             return;
         }
@@ -445,8 +469,14 @@ class MediaPipeline {
                 params: this.filters
             });
             ctx.drawImage(sc, x, y, w, h);
+            this.filterErrorCount = 0;
         } catch (err) {
-            console.error('[MediaPipeline] Custom filter execution error:', err);
+            this.filterErrorCount = (this.filterErrorCount || 0) + 1;
+            if (this.filterErrorCount >= 3) {
+                console.warn(`[MediaPipeline] Circuit breaker: disabling custom filter "${this.filters.customFilterId}" after 3 errors:`, err.message);
+                this.filters.customFilterId = null;
+                this.filters.enabled = this.filters.preset !== 'none';
+            }
             ctx.drawImage(sc, x, y, w, h);
         }
     }

@@ -635,6 +635,35 @@
             font-weight: 700;
             color: var(--dark-base);
         }
+
+        /* Responsive Mobile Layout Adaptations */
+        @media (max-width: 768px) {
+            header {
+                padding: 0 0.75rem;
+            }
+            .logo-group .tag-pill {
+                display: none;
+            }
+            .controls-bar {
+                padding: 0 0.5rem;
+                gap: 0.25rem;
+                overflow-x: auto;
+            }
+            .controls-group {
+                gap: 0.35rem;
+            }
+            .btn {
+                padding: 0.35rem 0.65rem;
+                font-size: 0.75rem;
+            }
+            .sources-tray {
+                max-height: 160px;
+            }
+            .block-card {
+                min-width: 170px;
+                width: 170px;
+            }
+        }
     </style>
 </head>
 
@@ -1339,6 +1368,33 @@
                 });
             }
 
+            // Browser Autoplay Policy: Resume Web Audio on first user interaction
+            const ensureAudioPlayback = () => {
+                if (typeof resumeSharedStudioAudioContext === 'function') {
+                    resumeSharedStudioAudioContext();
+                }
+            };
+            window.addEventListener('click', ensureAudioPlayback, { once: false, passive: true });
+            window.addEventListener('keydown', ensureAudioPlayback, { once: false, passive: true });
+            window.addEventListener('touchstart', ensureAudioPlayback, { once: false, passive: true });
+
+            // Hardware Track Ended Listener (Unplugged device or native "Stop sharing" clicked)
+            dataBus.subscribe('source:track:ended', (evt) => {
+                console.log('[Studio] Hardware track ended for source:', evt.sourceId, evt.kind);
+                const block = state.sources.get(evt.sourceId);
+                if (block) {
+                    if (!block.hasVideo && !block.hasAudio) {
+                        compositor.removeBlock(block.id);
+                        state.sources.delete(block.id);
+                        if (!block.isRemote) {
+                            peerRPC.unregisterLocalSource(block.id);
+                        }
+                        block.destroy();
+                    }
+                    renderBlocksTray();
+                }
+            });
+
             // Real-Time VU Meter update subscriber
             dataBus.subscribe('pipeline:audio:level', (evt) => {
                 const vuBar = document.getElementById(`vu-bar-${evt.sourceId}`);
@@ -1613,9 +1669,21 @@
                         state.recordedChunks = [];
                         const mergedStream = compositor.getMergedStream(60);
 
-                        const mimeType = MediaRecorder.isTypeSupported('video/webm;codecs=vp9,opus')
-                            ? 'video/webm;codecs=vp9,opus'
-                            : 'video/webm';
+                        // Select best supported MIME format
+                        let mimeType = 'video/webm';
+                        const candidateMimes = [
+                            'video/webm;codecs=vp9,opus',
+                            'video/webm;codecs=vp8,opus',
+                            'video/webm;codecs=h264,opus',
+                            'video/webm',
+                            'video/mp4'
+                        ];
+                        for (const cand of candidateMimes) {
+                            if (typeof MediaRecorder !== 'undefined' && MediaRecorder.isTypeSupported && MediaRecorder.isTypeSupported(cand)) {
+                                mimeType = cand;
+                                break;
+                            }
+                        }
 
                         const recorder = new MediaRecorder(mergedStream, {
                             mimeType: mimeType,
