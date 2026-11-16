@@ -875,6 +875,10 @@
                 By default, Vyz connects via Google & Cloudflare public STUN servers for zero-setup peer streaming. Add custom STUN/TURN servers below for enterprise relays or restricted NAT environments:
             </p>
             <div class="form-group">
+                <span class="form-label">Signaling Server URL (Optional: Default is Local Host /ws on self-hosted, or enter custom wss:// URL for cross-device on GitHub Pages)</span>
+                <input type="text" id="signaling-url-input" class="form-input" placeholder="wss://your-signaling-relay.com/ws" />
+            </div>
+            <div class="form-group">
                 <span class="form-label">ICE Servers JSON / URLs (Array of RTCIceServer)</span>
                 <textarea id="webrtc-servers-textarea" class="form-textarea" rows="6" placeholder='[
   { "urls": "stun:stun.l.google.com:19302" },
@@ -1089,6 +1093,7 @@
             const btnOpenWebrtcConfig = document.getElementById('btn-open-webrtc-config');
             const btnCloseWebrtcDialog = document.getElementById('btn-close-webrtc-dialog');
             const webrtcServersTextarea = document.getElementById('webrtc-servers-textarea');
+            const signalingUrlInput = document.getElementById('signaling-url-input');
             const btnSaveWebrtc = document.getElementById('btn-save-webrtc');
             const btnResetWebrtc = document.getElementById('btn-reset-webrtc');
 
@@ -1111,7 +1116,12 @@
             inviteLinkInput.value = inviteUrl.toString();
 
             // Setup Header Info
-            roomStatusBadge.textContent = `● Room: ${roomId} • ${userRole === 'host' ? 'Studio Host' : 'Participant'} • STUN: Public`;
+            function updateRoomBadge() {
+                const isStatic = PeerRPC.isStaticHosting();
+                const modeStr = isStatic ? 'GitHub Pages' : 'STUN: Public';
+                roomStatusBadge.textContent = `● Room: ${roomId} • ${userRole === 'host' ? 'Studio Host' : 'Participant'} • ${modeStr}`;
+            }
+            updateRoomBadge();
 
             // Populate Custom Filters list
             function updateCustomFilterDropdowns() {
@@ -1764,6 +1774,7 @@
             // --- WebRTC Server Config Dialog ---
             btnOpenWebrtcConfig.addEventListener('click', () => {
                 webrtcServersTextarea.value = JSON.stringify(peerRPC.iceServers, null, 2);
+                signalingUrlInput.value = peerRPC.customSignalingUrl || '';
                 webrtcDialog.showModal();
             });
 
@@ -1776,9 +1787,11 @@
                     const parsed = JSON.parse(webrtcServersTextarea.value.trim());
                     if (!Array.isArray(parsed)) throw new Error('Root must be an array of RTCIceServer objects');
                     peerRPC.setCustomIceServers(parsed);
+                    const sigUrl = signalingUrlInput.value.trim();
+                    peerRPC.setCustomSignalingUrl(sigUrl || null);
                     roomStatusBadge.textContent = `● Room: ${roomId} • ${userRole} • ICE: Custom (${parsed.length})`;
                     webrtcDialog.close();
-                    alert('Custom WebRTC ICE servers saved!');
+                    alert('Custom WebRTC ICE & Signaling configuration saved!');
                 } catch (err) {
                     alert('Invalid JSON: ' + err.message);
                 }
@@ -1786,8 +1799,10 @@
 
             btnResetWebrtc.addEventListener('click', () => {
                 peerRPC.setCustomIceServers(null);
+                peerRPC.setCustomSignalingUrl(null);
+                signalingUrlInput.value = '';
                 webrtcServersTextarea.value = JSON.stringify(peerRPC.iceServers, null, 2);
-                roomStatusBadge.textContent = `● Room: ${roomId} • ${userRole} • STUN: Public`;
+                updateRoomBadge();
                 alert('Reset to Google & Cloudflare Public STUN servers');
             });
 

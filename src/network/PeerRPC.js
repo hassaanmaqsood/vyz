@@ -3,6 +3,7 @@
  * Supports Public STUN servers, user-configured custom WebRTC servers (STUN/TURN),
  * dynamic multi-source negotiation per participant, independent audio/video track RPC toggles,
  * and host-to-peer merged studio broadcast distribution.
+ * Fully compatible with GitHub Pages static hosting & local/self-hosted Node environments.
  */
 
 const DEFAULT_PUBLIC_ICE_SERVERS = [
@@ -26,6 +27,9 @@ class PeerRPC {
         
         // ICE Servers resolution: Custom saved in localStorage > options > server API > public defaults
         this.iceServers = this.loadConfiguredIceServers() || options.iceServers || DEFAULT_PUBLIC_ICE_SERVERS;
+
+        // Custom Signaling URL
+        this.customSignalingUrl = options.signalingUrl || this.loadConfiguredSignalingUrl();
 
         this.ws = null;
         this.broadcastChannel = null;
@@ -63,8 +67,13 @@ class PeerRPC {
     }
 
     /**
-     * Load custom ICE servers from localStorage if configured by user
+     * Check if currently running on a static host (GitHub Pages or local file)
      */
+    static isStaticHosting() {
+        if (typeof window === 'undefined') return false;
+        return window.location.hostname.endsWith('github.io') || window.location.protocol === 'file:';
+    }
+
     loadConfiguredIceServers() {
         if (typeof window === 'undefined' || !window.localStorage) return null;
         try {
@@ -72,7 +81,6 @@ class PeerRPC {
             if (raw) {
                 const parsed = JSON.parse(raw);
                 if (Array.isArray(parsed) && parsed.length > 0) {
-                    console.log('[PeerRPC] Loaded custom ICE servers from localStorage:', parsed);
                     return parsed;
                 }
             }
@@ -82,9 +90,11 @@ class PeerRPC {
         return null;
     }
 
-    /**
-     * Set and persist custom STUN/TURN servers
-     */
+    loadConfiguredSignalingUrl() {
+        if (typeof window === 'undefined' || !window.localStorage) return null;
+        return localStorage.getItem('vyz_signaling_url') || null;
+    }
+
     setCustomIceServers(serversArray) {
         if (!Array.isArray(serversArray) || serversArray.length === 0) {
             this.iceServers = DEFAULT_PUBLIC_ICE_SERVERS;
@@ -100,9 +110,31 @@ class PeerRPC {
         console.log('[PeerRPC] Active ICE servers updated:', this.iceServers);
     }
 
+    setCustomSignalingUrl(url) {
+        this.customSignalingUrl = url ? url.trim() : null;
+        if (typeof window !== 'undefined' && window.localStorage) {
+            if (this.customSignalingUrl) {
+                localStorage.setItem('vyz_signaling_url', this.customSignalingUrl);
+            } else {
+                localStorage.removeItem('vyz_signaling_url');
+            }
+        }
+        // Re-initialize signaling with new endpoint
+        if (this.ws) {
+            this.ws.close();
+            this.ws = null;
+        }
+        this._initSignaling();
+    }
+
     async _fetchIceServers() {
-        // If user already specified custom servers in localStorage, keep them
         if (this.loadConfiguredIceServers()) return;
+
+        // Skip fetching server API if hosted on GitHub Pages
+        if (PeerRPC.isStaticHosting()) {
+            console.log('[PeerRPC] GitHub Pages detected. Defaulting to Google & Cloudflare Public STUN.');
+            return;
+        }
 
         try {
             if (typeof window !== 'undefined' && window.location.protocol.startsWith('http')) {
@@ -120,41 +152,60 @@ class PeerRPC {
     }
 
     _initSignaling() {
+        // Priority 1: User-configured signaling URL (useful for GitHub Pages cross-device)
+        if (this.customSignalingUrl) {
+            this._connectWebSocket(this.customSignalingUrl);
+            return;
+        }
+
+        // Priority 2: Static Hosting (GitHub Pages) defaults to BroadcastChannel for zero-config multi-tab
+        if (PeerRPC.isStaticHosting()) {
+            console.log('[PeerRPC] GitHub Pages static hosting. Initialized BroadcastChannel signaling.');
+            this._initBroadcastFallback();
+            if (this.onConnectionStatus) this.onConnectionStatus('github-pages-broadcast');
+            return;
+        }
+
+        // Priority 3: Local Node / Express WebSocket Server (/ws)
         if (typeof window !== 'undefined' && window.location.protocol.startsWith('http')) {
             const proto = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
             const wsUrl = `${proto}//${window.location.host}/ws`;
-
-            try {
-                this.ws = new WebSocket(wsUrl);
-
-                this.ws.onopen = () => {
-                    console.log('[PeerRPC] WebSocket signaling connected');
-                    if (this.onConnectionStatus) this.onConnectionStatus('connected');
-                    this._announcePresence();
-                };
-
-                this.ws.onmessage = (evt) => {
-                    try {
-                        const msg = JSON.parse(evt.data);
-                        this._handleSignalMessage(msg);
-                    } catch (err) {
-                        console.error('[PeerRPC] Signal parse error:', err);
-                    }
-                };
-
-                this.ws.onerror = () => {
-                    console.warn('[PeerRPC] WebSocket error, fallback to BroadcastChannel');
-                    this._initBroadcastFallback();
-                };
-
-                this.ws.onclose = () => {
-                    console.log('[PeerRPC] WebSocket closed, fallback to BroadcastChannel');
-                    this._initBroadcastFallback();
-                };
-            } catch (e) {
-                this._initBroadcastFallback();
-            }
+            this._connectWebSocket(wsUrl);
         } else {
+            this._initBroadcastFallback();
+        }
+    }
+
+    _connectWebSocket(wsUrl) {
+        try {
+            console.log(`[PeerRPC] Connecting to WebSocket signaling at: ${wsUrl}`);
+            this.ws = new WebSocket(wsUrl);
+
+            this.ws.onopen = () => {
+                console.log('[PeerRPC] WebSocket signaling connected');
+                if (this.onConnectionStatus) this.onConnectionStatus('connected');
+                this._announcePresence();
+            };
+
+            this.ws.onmessage = (evt) => {
+                try {
+                    const msg = JSON.parse(evt.data);
+                    this._handleSignalMessage(msg);
+                } catch (err) {
+                    console.error('[PeerRPC] Signal parse error:', err);
+                }
+            };
+
+            this.ws.onerror = () => {
+                console.warn('[PeerRPC] WebSocket error, fallback to BroadcastChannel');
+                this._initBroadcastFallback();
+            };
+
+            this.ws.onclose = () => {
+                console.log('[PeerRPC] WebSocket closed, fallback to BroadcastChannel');
+                this._initBroadcastFallback();
+            };
+        } catch (e) {
             this._initBroadcastFallback();
         }
     }
@@ -517,13 +568,9 @@ class PeerRPC {
         }
     }
 
-    /**
-     * Register and publish a local media source (Camera, Screen, Mic, etc.)
-     */
     registerLocalSource(sourceId, stream, metadata = {}) {
         this.localSources.set(sourceId, { stream, metadata });
 
-        // Add tracks to all connected peers
         this.rtcPeers.forEach((pc) => {
             const senders = pc.getSenders();
             stream.getTracks().forEach(track => {
@@ -534,7 +581,6 @@ class PeerRPC {
             });
         });
 
-        // Announce source to room
         this._sendSignal({
             type: 'SOURCE_ANNOUNCE',
             sourceId: sourceId,
@@ -543,9 +589,6 @@ class PeerRPC {
         });
     }
 
-    /**
-     * Unregister a local media source
-     */
     unregisterLocalSource(sourceId) {
         const entry = this.localSources.get(sourceId);
         if (entry) {
@@ -566,9 +609,6 @@ class PeerRPC {
         }
     }
 
-    /**
-     * Host broadcasts merged studio output stream as a single media source to peers
-     */
     broadcastMergedStream(mergedStream) {
         this.mergedBroadcastStream = mergedStream;
         this.isBroadcastingMerged = !!mergedStream;
@@ -593,9 +633,6 @@ class PeerRPC {
         });
     }
 
-    /**
-     * Stop broadcasting merged stream
-     */
     stopMergedBroadcast() {
         this.isBroadcastingMerged = false;
         this.mergedBroadcastStream = null;
@@ -606,9 +643,6 @@ class PeerRPC {
         });
     }
 
-    /**
-     * Granular track-level toggle command (Audio or Video)
-     */
     toggleSourceTrack(targetPeerId, sourceId, trackKind, enabled) {
         const payload = {
             type: 'RPC_TRACK_TOGGLE',
