@@ -457,7 +457,7 @@ class MediaPipeline {
         const isSpeaking = this.ar.isSpeaking;
 
         // Dark background tile
-        ctx.fillStyle = '#111827';
+        ctx.fillStyle = '#1B3A4B';
         ctx.fillRect(x, y, w, h);
 
         // Concentric audio wave rings when speaking
@@ -522,7 +522,7 @@ class MediaPipeline {
                 sy = (mediaH - sh) / 2;
             }
         } else if (fitMode === 'contain') {
-            ctx.fillStyle = '#0F172A';
+            ctx.fillStyle = '#1B3A4B';
             ctx.fillRect(x, y, w, h);
 
             if (mediaAspect > targetAspect) {

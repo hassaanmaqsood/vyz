@@ -291,21 +291,21 @@ class DynamicCompositor {
         const h = this.canvas.height;
         const ctx = this.ctx;
 
-        // Dark Studio Backdrop
-        ctx.fillStyle = '#0F172A';
+        // Studio Backdrop
+        ctx.fillStyle = '#1B3A4B';
         ctx.fillRect(0, 0, w, h);
 
         const activeBlocks = this.getActiveBlocks();
 
         if (activeBlocks.length === 0) {
             ctx.save();
-            ctx.fillStyle = '#475569';
-            ctx.font = '500 28px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+            ctx.fillStyle = '#F5F5F0';
+            ctx.font = '600 28px sans-serif';
             ctx.textAlign = 'center';
             ctx.textBaseline = 'middle';
             ctx.fillText('No Active Media Sources', w / 2, h / 2 - 16);
-            ctx.font = '400 18px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
-            ctx.fillStyle = '#64748B';
+            ctx.font = '400 18px sans-serif';
+            ctx.fillStyle = '#A3B8C2';
             ctx.fillText('Add a Camera, Screen, or Remote Participant to begin broadcasting', w / 2, h / 2 + 24);
             ctx.restore();
             return;
